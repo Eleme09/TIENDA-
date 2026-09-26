@@ -450,6 +450,7 @@ app.post(
         precio,
         stock: Number(req.body.stock) || 0,
         unidad: req.body.unidad || 'unidad',
+        foto_url: req.body.foto_url || null,
       })
     );
   })
@@ -463,6 +464,7 @@ app.put(
     if (req.body.nombre !== undefined) fields.nombre = String(req.body.nombre).trim();
     if (req.body.precio !== undefined) fields.precio = Number(req.body.precio);
     if (req.body.stock !== undefined) fields.stock = Number(req.body.stock);
+    if (req.body.foto_url !== undefined) fields.foto_url = req.body.foto_url || null;
     if (req.body.activo !== undefined) fields.activo = Boolean(req.body.activo);
     res.json(await sbUpdateProducto(Number(req.params.id), fields));
   })

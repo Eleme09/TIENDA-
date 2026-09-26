@@ -23,6 +23,7 @@
     personasBody: document.getElementById('personasBody'),
     productoForm: document.getElementById('productoForm'),
     productoNombre: document.getElementById('productoNombre'),
+    productoFoto: document.getElementById('productoFoto'),
     productoPrecio: document.getElementById('productoPrecio'),
     productoStock: document.getElementById('productoStock'),
     productosBody: document.getElementById('productosBody'),
@@ -161,10 +162,10 @@
   async function loadProductos() {
     productosCache = await apiFetch('/api/admin/productos');
     el.productosBody.innerHTML = productosCache
-      .map(
-        (p) =>
-          `<tr><td>${escapeHtml(p.nombre)}</td><td>${formatMoney(p.precio)}</td><td>${p.stock}</td><td>${p.activo ? '<span class="pill pill-ok">Activo</span>' : '<span class="pill pill-warn">Inactivo</span>'}</td><td><button type="button" class="btn btn-sm" data-toggle="${p.id}">${p.activo ? 'Desactivar' : 'Activar'}</button></td></tr>`
-      )
+      .map((p) => {
+        const foto = p.foto_url ? `<img src="${escapeHtml(p.foto_url)}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:6px" />` : '';
+        return `<tr><td>${foto}</td><td>${escapeHtml(p.nombre)}</td><td>${formatMoney(p.precio)}</td><td>${p.stock}</td><td>${p.activo ? '<span class="pill pill-ok">Activo</span>' : '<span class="pill pill-warn">Inactivo</span>'}</td><td><button type="button" class="btn btn-sm" data-toggle="${p.id}">${p.activo ? 'Desactivar' : 'Activar'}</button></td></tr>`;
+      })
       .join('');
     el.productosBody.querySelectorAll('[data-toggle]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -189,6 +190,7 @@
           nombre: el.productoNombre.value.trim(),
           precio: Number(el.productoPrecio.value),
           stock: Number(el.productoStock.value) || 0,
+          foto_url: el.productoFoto.value.trim() || null,
         }),
       });
       el.productoForm.reset();

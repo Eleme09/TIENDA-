@@ -62,9 +62,13 @@
       .map((p) => {
         const qty = qtyByProducto[p.id] || 0;
         const outOfStock = Number(p.stock) <= 0;
+        const foto = p.foto_url
+          ? `<img class="producto-foto" src="${escapeHtml(p.foto_url)}" alt="" loading="lazy" />`
+          : '<div class="producto-foto producto-foto-empty"></div>';
         return `
           <div class="producto-row">
-            <div>
+            ${foto}
+            <div style="flex:1;min-width:0">
               <div class="producto-nombre">${escapeHtml(p.nombre)}</div>
               <div class="producto-precio">${formatMoney(p.precio)} ${outOfStock ? '· <span class="pill pill-warn">Sin stock</span>' : ''}</div>
             </div>

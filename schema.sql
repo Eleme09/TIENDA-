@@ -35,6 +35,7 @@ create table if not exists tf_productos (
   precio numeric(12, 2) not null default 0,
   stock numeric(12, 2) not null default 0,
   unidad text not null default 'unidad',
+  foto_url text,
   activo boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

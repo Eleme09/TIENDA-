@@ -15,22 +15,22 @@ if (missingEnv.length > 0) {
   process.exit(1);
 }
 
+// Fotos genéricas (Unsplash), verificadas a mano una por una para que
+// ninguna muestre marca real — es una tienda de dulces, no un catálogo de
+// una marca en particular.
 const PRODUCTOS = [
-  { nombre: 'Bolsa de papas', precio: 3500, stock: 24 },
-  { nombre: 'Chocolatina', precio: 2500, stock: 40 },
-  { nombre: 'Gaseosa 400ml', precio: 4000, stock: 18 },
-  { nombre: 'Galletas paquete', precio: 3000, stock: 30 },
-  { nombre: 'Dulce de leche', precio: 1000, stock: 60 },
-  { nombre: 'Chicle paquete', precio: 1500, stock: 50 },
-  { nombre: 'Agua 600ml', precio: 2500, stock: 20 },
-  { nombre: 'Café en vaso', precio: 2000, stock: 15 },
+  { nombre: 'Chocolate trozado', precio: 2500, stock: 40, foto_url: 'https://images.unsplash.com/photo-1511381939415-e44015466834?w=600&q=80' },
+  { nombre: 'Ositos de goma', precio: 1500, stock: 50, foto_url: 'https://images.unsplash.com/photo-1582058091505-f87a2e55a40f?w=600&q=80' },
+  { nombre: 'Paleta de dulce', precio: 1000, stock: 60, foto_url: 'https://images.unsplash.com/photo-1575224300306-1b8da36134ec?w=600&q=80' },
+  { nombre: 'Galletas surtidas', precio: 3000, stock: 30, foto_url: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=600&q=80' },
+  { nombre: 'Agua 600ml', precio: 2500, stock: 20, foto_url: 'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=600&q=80' },
+  { nombre: 'Café caliente', precio: 2000, stock: 15, foto_url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80' },
+  { nombre: 'Bolsa de papas', precio: 3500, stock: 24, foto_url: 'https://images.unsplash.com/photo-1613919113640-25732ec5e61f?w=600&q=80' },
+  { nombre: 'Dona glaseada', precio: 2800, stock: 18, foto_url: 'https://images.unsplash.com/photo-1551106652-a5bcf4b29ab6?w=600&q=80' },
 ];
 
-const PERSONAS = [
-  { nombre: 'Juan Pérez', pin: '1111' },
-  { nombre: 'María Gómez', pin: '2222' },
-  { nombre: 'Carlos Ruiz', pin: '3333' },
-];
+// Persona real (no de ejemplo) pedida explícitamente por el dueño.
+const PERSONAS = [{ nombre: 'Jeiner', pin: '0909' }];
 
 async function main() {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {

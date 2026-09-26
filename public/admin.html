@@ -95,13 +95,14 @@
               <div class="field" style="margin-bottom:0;flex:1;min-width:160px"><label>Nombre</label><input id="productoNombre" required /></div>
               <div class="field" style="margin-bottom:0;width:110px"><label>Precio</label><input id="productoPrecio" type="number" min="0" required /></div>
               <div class="field" style="margin-bottom:0;width:90px"><label>Stock</label><input id="productoStock" type="number" min="0" value="0" /></div>
+              <div class="field" style="margin-bottom:0;flex:1;min-width:200px"><label>URL de foto (opcional)</label><input id="productoFoto" type="url" placeholder="https://..." /></div>
               <div style="align-self:flex-end"><button type="submit" class="btn btn-accent">Agregar</button></div>
             </form>
           </div>
           <div class="card-box">
             <h2>Productos</h2>
             <div class="table-wrap">
-              <table><thead><tr><th>Nombre</th><th>Precio</th><th>Stock</th><th>Estado</th><th></th></tr></thead><tbody id="productosBody"></tbody></table>
+              <table><thead><tr><th></th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Estado</th><th></th></tr></thead><tbody id="productosBody"></tbody></table>
             </div>
           </div>
         </div>
