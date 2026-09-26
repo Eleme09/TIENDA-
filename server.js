@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const session = require('express-session');
 const helmet = require('helmet');
@@ -256,6 +257,20 @@ const upload = multer({
   },
 });
 
+// Sube una foto de producto a Supabase Storage (bucket "uploads", mismo
+// patrón que VENTA-WEB) y devuelve la URL pública.
+async function sbUploadImage(buffer, mimetype, originalName) {
+  const ext = (path.extname(originalName || '') || '.jpg').toLowerCase();
+  const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+  const { error } = await supabase.storage.from('uploads').upload(filename, buffer, {
+    contentType: mimetype,
+    upsert: false,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from('uploads').getPublicUrl(filename);
+  return data.publicUrl;
+}
+
 // Verifica el PIN de una persona contra la base. 401 si no coincide.
 async function requirePersonaPin(req, res, next) {
   try {
@@ -484,6 +499,17 @@ app.get(
   requireAdmin,
   asyncRoute(async (req, res) => {
     res.json(await sbListConsumosByPersona(Number(req.params.id)));
+  })
+);
+
+app.post(
+  '/api/admin/upload',
+  requireAdmin,
+  upload.single('file'),
+  asyncRoute(async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Falta el archivo' });
+    const url = await sbUploadImage(req.file.buffer, req.file.mimetype, req.file.originalname);
+    res.json({ url });
   })
 );
 

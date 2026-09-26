@@ -24,6 +24,8 @@
     productoForm: document.getElementById('productoForm'),
     productoNombre: document.getElementById('productoNombre'),
     productoFoto: document.getElementById('productoFoto'),
+    productoFotoFile: document.getElementById('productoFotoFile'),
+    productoFotoPreview: document.getElementById('productoFotoPreview'),
     productoPrecio: document.getElementById('productoPrecio'),
     productoStock: document.getElementById('productoStock'),
     productosBody: document.getElementById('productosBody'),
@@ -122,12 +124,55 @@
     el.reporteBody.innerHTML = data
       .map(
         (r) =>
-          `<tr><td>${escapeHtml(r.persona_nombre)}</td><td>${r.items}</td><td><strong>${formatMoney(r.total)}</strong></td><td>${r.anulados > 0 ? `<span class="pill pill-warn">${r.anulados}</span>` : '—'}</td></tr>`
+          `<tr><td>${escapeHtml(r.persona_nombre)}</td><td>${r.items}</td><td><strong>${formatMoney(r.total)}</strong></td><td>${r.anulados > 0 ? `<span class="pill pill-warn">${r.anulados}</span>` : '—'}</td><td><button type="button" class="btn btn-sm" data-detalle="${r.persona_id}" data-nombre="${escapeHtml(r.persona_nombre)}">Ver detalle</button></td></tr>`
       )
-      .join('') || '<tr><td colspan="4" class="muted">Sin consumos en el rango.</td></tr>';
+      .join('') || '<tr><td colspan="5" class="muted">Sin consumos en el rango.</td></tr>';
+
+    el.reporteBody.querySelectorAll('[data-detalle]').forEach((btn) => {
+      btn.addEventListener('click', () => mostrarDetallePersona(Number(btn.dataset.detalle), btn.dataset.nombre));
+    });
   }
 
   el.btnReporte.addEventListener('click', loadReporte);
+
+  async function mostrarDetallePersona(personaId, nombre) {
+    const consumos = await apiFetch(`/api/admin/personas/${personaId}/consumos`);
+    const rows = consumos
+      .map((c) => {
+        const fecha = new Date(c.created_at).toLocaleDateString('es-CO');
+        const total = formatMoney(Number(c.precio_unitario) * Number(c.cantidad));
+        const producto = c.tf_productos ? c.tf_productos.nombre : '';
+        const estado = c.anulado ? '<span class="pill pill-warn">Anulado</span>' : '<span class="pill pill-ok">Vigente</span>';
+        const motivo = c.anulado ? escapeHtml(c.motivo_anulacion || '—') : '';
+        return `<tr><td>${fecha}</td><td>${escapeHtml(producto)}</td><td>${c.cantidad}</td><td>${total}</td><td>${estado}</td><td>${motivo}</td></tr>`;
+      })
+      .join('');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'vw-modal-overlay';
+    overlay.innerHTML = `
+      <div class="vw-modal-box" style="max-width:640px">
+        <h2 style="margin:0 0 12px">Detalle de ${escapeHtml(nombre)}</h2>
+        <div class="table-wrap" style="max-height:60vh;overflow-y:auto">
+          <table>
+            <thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Total</th><th>Estado</th><th>Motivo</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="6" class="muted">Sin consumos.</td></tr>'}</tbody>
+          </table>
+        </div>
+        <div class="vw-modal-actions" style="margin-top:12px">
+          <button type="button" class="btn btn-accent" id="btnCerrarDetalle">Cerrar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    function close() {
+      overlay.remove();
+    }
+    overlay.querySelector('#btnCerrarDetalle').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
+  }
 
   // ── Personas ─────────────────────────────────────────────────────────
 
@@ -194,8 +239,28 @@
         }),
       });
       el.productoForm.reset();
+      el.productoFoto.value = '';
+      el.productoFotoPreview.hidden = true;
+      el.productoFotoPreview.src = '';
       await loadProductos();
       window.VW_UI.toast('Producto agregado.', 'ok');
+    } catch (err) {
+      window.VW_UI.toast(err.message, 'error');
+    }
+  });
+
+  el.productoFotoFile.addEventListener('change', async () => {
+    const file = el.productoFotoFile.files[0];
+    if (!file) return;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo subir la imagen');
+      el.productoFoto.value = data.url;
+      el.productoFotoPreview.src = data.url;
+      el.productoFotoPreview.hidden = false;
     } catch (err) {
       window.VW_UI.toast(err.message, 'error');
     }

@@ -14,6 +14,8 @@
     menuPersonaName: document.getElementById('menuPersonaName'),
     productoList: document.getElementById('productoList'),
     historialBody: document.getElementById('historialBody'),
+    quincenaLabel: document.getElementById('quincenaLabel'),
+    quincenaTotal: document.getElementById('quincenaTotal'),
     btnSalir: document.getElementById('btnSalir'),
   };
 
@@ -120,6 +122,30 @@
     renderProductos();
   }
 
+  // Quincena colombiana estándar: 1-15 y 16-fin de mes. No hay envío
+  // automático (no hay email/WhatsApp integrado) — esto muestra siempre
+  // el total vigente de la quincena en curso, actualizado al momento.
+  function quincenaActualRango() {
+    const now = new Date();
+    const day = now.getDate();
+    const start = new Date(now.getFullYear(), now.getMonth(), day <= 15 ? 1 : 16);
+    const end =
+      day <= 15
+        ? new Date(now.getFullYear(), now.getMonth(), 15, 23, 59, 59)
+        : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    return { start, end };
+  }
+
+  function renderQuincena(consumos) {
+    const { start, end } = quincenaActualRango();
+    const fmt = (d) => d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+    el.quincenaLabel.textContent = `Quincena actual (${fmt(start)} – ${fmt(end)})`;
+    const total = consumos
+      .filter((c) => !c.anulado && new Date(c.created_at) >= start && new Date(c.created_at) <= end)
+      .reduce((sum, c) => sum + Number(c.precio_unitario) * Number(c.cantidad), 0);
+    el.quincenaTotal.textContent = formatMoney(total);
+  }
+
   async function loadHistorial() {
     const res = await fetch(`/api/personas/${selectedPersona.id}/consumos`, {
       method: 'POST',
@@ -131,16 +157,18 @@
       window.VW_UI.toast(data.error || 'No se pudo cargar', 'error');
       return;
     }
+    renderQuincena(data);
     el.historialBody.innerHTML = data
       .map((c) => {
         const fecha = new Date(c.created_at).toLocaleDateString('es-CO');
         const total = formatMoney(Number(c.precio_unitario) * Number(c.cantidad));
         const nombre = c.tf_productos ? c.tf_productos.nombre : '';
         const estado = c.anulado
-          ? `<span class="pill pill-warn" title="${escapeHtml(c.motivo_anulacion || '')}">Anulado</span>`
+          ? `<span class="pill pill-warn">Anulado</span>`
           : `<span class="pill pill-ok">Vigente</span>`;
+        const motivo = c.anulado ? escapeHtml(c.motivo_anulacion || '—') : '';
         const anularBtn = c.anulado ? '' : `<button type="button" class="btn btn-sm" data-anular="${c.id}">Anular</button>`;
-        return `<tr><td>${fecha}</td><td>${escapeHtml(nombre)}</td><td>${c.cantidad}</td><td>${total}</td><td>${estado}</td><td>${anularBtn}</td></tr>`;
+        return `<tr><td>${fecha}</td><td>${escapeHtml(nombre)}</td><td>${c.cantidad}</td><td>${total}</td><td>${estado}</td><td>${motivo}</td><td>${anularBtn}</td></tr>`;
       })
       .join('');
 

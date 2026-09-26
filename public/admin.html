@@ -15,7 +15,6 @@
       <div class="topbar-inner">
         <span class="brand">Panel del dueño</span>
         <div>
-          <a class="btn btn-sm" href="/">Ver autoservicio</a>
           <button type="button" class="btn btn-sm" id="btnLogout" hidden>Salir</button>
         </div>
       </div>
@@ -64,7 +63,7 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Persona</th><th>Items</th><th>Total a cobrar</th><th>Anulados</th></tr></thead>
+                <thead><tr><th>Persona</th><th>Items</th><th>Total a cobrar</th><th>Anulados</th><th></th></tr></thead>
                 <tbody id="reporteBody"></tbody>
               </table>
             </div>
@@ -95,7 +94,14 @@
               <div class="field" style="margin-bottom:0;flex:1;min-width:160px"><label>Nombre</label><input id="productoNombre" required /></div>
               <div class="field" style="margin-bottom:0;width:110px"><label>Precio</label><input id="productoPrecio" type="number" min="0" required /></div>
               <div class="field" style="margin-bottom:0;width:90px"><label>Stock</label><input id="productoStock" type="number" min="0" value="0" /></div>
-              <div class="field" style="margin-bottom:0;flex:1;min-width:200px"><label>URL de foto (opcional)</label><input id="productoFoto" type="url" placeholder="https://..." /></div>
+              <div class="field" style="margin-bottom:0;flex:1;min-width:220px">
+                <label>Foto (opcional)</label>
+                <div class="upload-row">
+                  <img id="productoFotoPreview" class="producto-foto" hidden />
+                  <input id="productoFoto" type="hidden" />
+                  <input id="productoFotoFile" type="file" accept="image/*" />
+                </div>
+              </div>
               <div style="align-self:flex-end"><button type="submit" class="btn btn-accent">Agregar</button></div>
             </form>
           </div>
@@ -110,7 +116,6 @@
         <div id="tabFactura" class="panel">
           <div class="card-box">
             <h2>Cargar stock por foto de factura</h2>
-            <p class="muted">Sube una foto clara de la factura. El sistema lee el texto (OCR) e intenta detectar cantidad y producto por línea — siempre revisá y corregí antes de aplicar, la lectura automática no es perfecta.</p>
             <div class="upload-row">
               <input type="file" id="facturaFile" accept="image/*" />
               <button type="button" class="btn btn-accent" id="btnOcr">Leer factura</button>

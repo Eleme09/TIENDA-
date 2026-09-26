@@ -14,7 +14,6 @@
     <header class="topbar">
       <div class="topbar-inner">
         <span class="brand" id="businessName">Autoservicio</span>
-        <a class="btn btn-sm" href="/admin.html">Panel del dueño</a>
       </div>
     </header>
 
@@ -56,10 +55,16 @@
           </div>
 
           <div id="tabHistorial" class="panel">
+            <div class="stat-tiles">
+              <div class="stat-tile">
+                <div class="stat-label" id="quincenaLabel">Quincena actual</div>
+                <div class="stat-value" id="quincenaTotal">$0</div>
+              </div>
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Total</th><th>Estado</th><th></th></tr>
+                  <tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Total</th><th>Estado</th><th>Motivo</th><th></th></tr>
                 </thead>
                 <tbody id="historialBody"></tbody>
               </table>
