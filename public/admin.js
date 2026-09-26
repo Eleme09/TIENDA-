@@ -303,7 +303,7 @@
   el.btnOcr.addEventListener('click', async () => {
     const file = el.facturaFile.files[0];
     if (!file) {
-      window.VW_UI.toast('Elegí una foto primero.', 'error');
+      window.VW_UI.toast('Elige una foto primero.', 'error');
       return;
     }
     el.ocrStatus.hidden = false;
@@ -319,7 +319,7 @@
       renderFacturaItems();
       el.facturaItemsWrap.hidden = false;
       if (facturaItems.length === 0) {
-        window.VW_UI.toast('No se detectaron líneas — revisá la foto o cargá manualmente.', 'error');
+        window.VW_UI.toast('No se detectaron líneas — revisa la foto o carga los productos manualmente.', 'error');
       }
     } catch (err) {
       window.VW_UI.toast(err.message, 'error');

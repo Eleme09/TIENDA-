@@ -178,9 +178,9 @@
   }
 
   async function anularConsumo(consumoId) {
-    const motivo = window.prompt('¿Por qué anulás este consumo? (obligatorio)');
+    const motivo = window.prompt('¿Por qué anulas este consumo? (obligatorio)');
     if (!motivo || !motivo.trim()) {
-      window.VW_UI.toast('Necesitás indicar el motivo.', 'error');
+      window.VW_UI.toast('Necesitas indicar el motivo.', 'error');
       return;
     }
     try {
