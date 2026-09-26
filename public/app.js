@@ -65,22 +65,23 @@
         const qty = qtyByProducto[p.id] || 0;
         const outOfStock = Number(p.stock) <= 0;
         const foto = p.foto_url
-          ? `<img class="producto-foto" src="${escapeHtml(p.foto_url)}" alt="" loading="lazy" />`
-          : '<div class="producto-foto producto-foto-empty"></div>';
+          ? `<img class="producto-foto" src="${escapeHtml(p.foto_url)}" alt="${escapeHtml(p.nombre)}" loading="lazy" />`
+          : '<div class="producto-foto-empty"></div>';
         return `
-          <div class="producto-row">
+          <article class="producto-card">
             ${foto}
-            <div style="flex:1;min-width:0">
+            <div class="producto-body">
               <div class="producto-nombre">${escapeHtml(p.nombre)}</div>
-              <div class="producto-precio">${formatMoney(p.precio)} ${outOfStock ? '· <span class="pill pill-warn">Sin stock</span>' : ''}</div>
+              <div class="producto-precio">${formatMoney(p.precio)}</div>
+              ${outOfStock ? '<span class="badge-out">Sin stock</span>' : ''}
+              <div class="qty-controls">
+                <button type="button" class="qty-btn" data-id="${p.id}" data-delta="-1" ${outOfStock ? 'disabled' : ''}>−</button>
+                <span>${qty}</span>
+                <button type="button" class="qty-btn" data-id="${p.id}" data-delta="1" ${outOfStock ? 'disabled' : ''}>+</button>
+              </div>
+              ${qty > 0 ? `<button type="button" class="btn btn-accent btn-sm btn-block" data-confirm="${p.id}" style="margin-top:6px">Anotar</button>` : ''}
             </div>
-            <div class="qty-controls">
-              <button type="button" class="qty-btn" data-id="${p.id}" data-delta="-1" ${outOfStock ? 'disabled' : ''}>−</button>
-              <span>${qty}</span>
-              <button type="button" class="qty-btn" data-id="${p.id}" data-delta="1" ${outOfStock ? 'disabled' : ''}>+</button>
-              ${qty > 0 ? `<button type="button" class="btn btn-accent btn-sm" data-confirm="${p.id}">Anotar</button>` : ''}
-            </div>
-          </div>
+          </article>
         `;
       })
       .join('');

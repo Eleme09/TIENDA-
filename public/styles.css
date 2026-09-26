@@ -228,45 +228,91 @@ textarea {
   background: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
 
-.producto-row {
+/* Mismo sistema de tarjetas que el catálogo de VENTA-WEB (proyecto
+   "padre" de este sub-servicio) — grid de tarjetas con foto, no lista. */
+.producto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.producto-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s cubic-bezier(0.2, 0.7, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.producto-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--muted);
 }
 
 .producto-foto {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-sm, 8px);
+  aspect-ratio: 1 / 1;
+  width: 100%;
   object-fit: cover;
-  flex: none;
   background: var(--surface-2);
+  display: block;
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.producto-card:hover .producto-foto {
+  transform: scale(1.06);
 }
 
 .producto-foto-empty {
-  border: 1px dashed var(--border);
+  aspect-ratio: 1 / 1;
+  background: var(--surface-2);
+  border-bottom: 1px dashed var(--border);
 }
 
-.producto-row:last-child {
-  border-bottom: none;
+.producto-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
 }
 
 .producto-nombre {
   font-weight: 600;
+  font-size: 14.5px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 .producto-precio {
-  color: var(--muted);
-  font-size: 13px;
+  font-weight: 800;
+  font-size: 15.5px;
+  letter-spacing: -0.01em;
+  margin-top: auto;
+}
+
+.badge-out {
+  display: inline-block;
+  font-size: 10.5px;
+  color: var(--danger);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  padding: 2px 7px;
+  border-radius: 999px;
+  width: fit-content;
 }
 
 .qty-controls {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  margin-top: 6px;
 }
 
 .qty-btn {
@@ -278,6 +324,15 @@ textarea {
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
+  transition: background-color 0.15s ease, transform 0.12s ease;
+}
+
+.qty-btn:hover {
+  background: var(--border);
+}
+
+.qty-btn:active {
+  transform: scale(0.9);
 }
 
 table {
