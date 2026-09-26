@@ -178,21 +178,25 @@
     // para no crear una vía extra de fuerza bruta) — probamos contra el
     // historial, que ya requiere PIN correcto.
     currentPin = pin;
-    const res = await fetch(`/api/personas/${selectedPersona.id}/consumos`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ persona_id: selectedPersona.id, pin: currentPin }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      window.VW_UI.toast(data.error || 'PIN incorrecto', 'error');
-      return;
+    try {
+      const res = await fetch(`/api/personas/${selectedPersona.id}/consumos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persona_id: selectedPersona.id, pin: currentPin }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        window.VW_UI.toast(data.error || 'PIN incorrecto', 'error');
+        return;
+      }
+      el.menuPersonaName.textContent = selectedPersona.nombre;
+      Object.keys(qtyByProducto).forEach((k) => delete qtyByProducto[k]);
+      await refreshProductos();
+      showStep('menu');
+      document.querySelector('.tab-btn[data-tab="tabAgregar"]').click();
+    } catch (err) {
+      window.VW_UI.toast('No se pudo conectar. Intenta de nuevo.', 'error');
     }
-    el.menuPersonaName.textContent = selectedPersona.nombre;
-    Object.keys(qtyByProducto).forEach((k) => delete qtyByProducto[k]);
-    await refreshProductos();
-    showStep('menu');
-    document.querySelector('.tab-btn[data-tab="tabAgregar"]').click();
   });
 
   el.btnBackPersona.addEventListener('click', () => {

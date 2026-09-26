@@ -145,7 +145,13 @@ async function sbListConsumosRango(desde, hasta) {
     .select('*, tf_personas(nombre)')
     .order('created_at', { ascending: false });
   if (desde) q = q.gte('created_at', desde);
-  if (hasta) q = q.lte('created_at', hasta);
+  // Un input type="date" manda solo "2024-01-15" — comparado con lte tal
+  // cual, Postgres lo castea a medianoche de ese día y excluye todo lo
+  // registrado durante el día seleccionado. Se empuja al final del día.
+  if (hasta) {
+    const hastaFinDeDia = /^\d{4}-\d{2}-\d{2}$/.test(hasta) ? `${hasta}T23:59:59.999` : hasta;
+    q = q.lte('created_at', hastaFinDeDia);
+  }
   const { data, error } = await q;
   if (error) throw error;
   return data.map((c) => ({
@@ -509,12 +515,12 @@ app.post(
   requireAdmin,
   asyncRoute(async (req, res) => {
     const items = Array.isArray(req.body.items) ? req.body.items : [];
+    const productos = await sbListProductos();
     const aplicados = [];
     for (const item of items) {
       const cantidad = Number(item.cantidad) || 0;
       if (cantidad <= 0) continue;
       if (item.producto_id) {
-        const productos = await sbListProductos();
         const producto = productos.find((p) => p.id === Number(item.producto_id));
         if (!producto) continue;
         await sbUpdateProducto(producto.id, { stock: Number(producto.stock) + cantidad });
