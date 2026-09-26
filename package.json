@@ -1,0 +1,25 @@
+{
+  "name": "tienda-fiado",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Registro de consumo/fiado por quincena para tienda de autoservicio, con inventario y carga de stock por foto de factura (OCR local)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --env-file=.env server.js",
+    "seed": "node --env-file=.env seed.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "express-session": "^1.18.1",
+    "helmet": "^8.3.0",
+    "multer": "^2.4.0",
+    "tesseract.js": "^5.1.1"
+  }
+}

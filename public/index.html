@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Autoservicio</title>
+    <meta name="robots" content="noindex" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <span class="brand" id="businessName">Autoservicio</span>
+        <a class="btn btn-sm" href="/admin.html">Panel del dueño</a>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- Paso 1: elegir persona -->
+      <section id="stepPersona">
+        <div class="card-box">
+          <h2>¿Quién sos?</h2>
+          <div id="personaGrid" class="persona-grid"></div>
+        </div>
+      </section>
+
+      <!-- Paso 2: PIN -->
+      <section id="stepPin" hidden>
+        <div class="card-box">
+          <h2>PIN de <span id="pinPersonaName"></span></h2>
+          <form id="pinForm">
+            <div class="field">
+              <label for="pinInput">PIN (4 dígitos)</label>
+              <input id="pinInput" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required />
+            </div>
+            <button type="submit" class="btn btn-accent btn-block">Entrar</button>
+            <button type="button" class="btn btn-block" id="btnBackPersona" style="margin-top:8px">Volver</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Paso 3: registrar consumo / ver historial -->
+      <section id="stepMenu" hidden>
+        <div class="card-box">
+          <h2>Hola, <span id="menuPersonaName"></span></h2>
+          <div class="tabnav">
+            <button type="button" class="tab-btn active" data-tab="tabAgregar">Anotar consumo</button>
+            <button type="button" class="tab-btn" data-tab="tabHistorial">Mi historial</button>
+          </div>
+
+          <div id="tabAgregar" class="panel active">
+            <div id="productoList"></div>
+          </div>
+
+          <div id="tabHistorial" class="panel">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Total</th><th>Estado</th><th></th></tr>
+                </thead>
+                <tbody id="historialBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-block" id="btnSalir" style="margin-top:16px">Salir</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="/ui.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

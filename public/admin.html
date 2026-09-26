@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Panel del dueño</title>
+    <meta name="robots" content="noindex" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <span class="brand">Panel del dueño</span>
+        <div>
+          <a class="btn btn-sm" href="/">Ver autoservicio</a>
+          <button type="button" class="btn btn-sm" id="btnLogout" hidden>Salir</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container" style="max-width:960px">
+      <!-- Auth -->
+      <section id="authSection">
+        <div class="auth-shell">
+          <h1 id="authTitle">Ingresar</h1>
+          <form id="authForm">
+            <div class="field" id="fieldDisplayName" hidden>
+              <label for="displayName">Tu nombre</label>
+              <input id="displayName" type="text" />
+            </div>
+            <div class="field">
+              <label for="username">Usuario</label>
+              <input id="username" type="text" required autocomplete="username" />
+            </div>
+            <div class="field">
+              <label for="password">Contraseña</label>
+              <input id="password" type="password" required autocomplete="current-password" />
+            </div>
+            <button type="submit" class="btn btn-accent btn-block" id="authSubmit">Ingresar</button>
+            <p class="error-msg" id="authError" hidden></p>
+          </form>
+        </div>
+      </section>
+
+      <!-- Panel -->
+      <section id="panelSection" hidden>
+        <div class="tabnav">
+          <button type="button" class="tab-btn active" data-tab="tabReporte">Reporte</button>
+          <button type="button" class="tab-btn" data-tab="tabPersonas">Personas</button>
+          <button type="button" class="tab-btn" data-tab="tabProductos">Productos</button>
+          <button type="button" class="tab-btn" data-tab="tabFactura">Cargar factura</button>
+        </div>
+
+        <div id="tabReporte" class="panel active">
+          <div class="card-box">
+            <h2>Reporte de consumo</h2>
+            <div class="row-inline" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+              <div class="field" style="margin-bottom:0"><label>Desde</label><input type="date" id="reporteDesde" /></div>
+              <div class="field" style="margin-bottom:0"><label>Hasta</label><input type="date" id="reporteHasta" /></div>
+              <div style="align-self:flex-end"><button type="button" class="btn btn-accent" id="btnReporte">Generar</button></div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Persona</th><th>Items</th><th>Total a cobrar</th><th>Anulados</th></tr></thead>
+                <tbody id="reporteBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="tabPersonas" class="panel">
+          <div class="card-box">
+            <h2>Agregar persona</h2>
+            <form id="personaForm" class="row-inline" style="display:flex;gap:8px;flex-wrap:flex-end">
+              <div class="field" style="margin-bottom:0;flex:1;min-width:160px"><label>Nombre</label><input id="personaNombre" required /></div>
+              <div class="field" style="margin-bottom:0;width:100px"><label>PIN (4 díg.)</label><input id="personaPin" maxlength="4" pattern="[0-9]{4}" required /></div>
+              <div style="align-self:flex-end"><button type="submit" class="btn btn-accent">Agregar</button></div>
+            </form>
+          </div>
+          <div class="card-box">
+            <h2>Personas</h2>
+            <div class="table-wrap">
+              <table><thead><tr><th>Nombre</th><th>Estado</th><th></th></tr></thead><tbody id="personasBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div id="tabProductos" class="panel">
+          <div class="card-box">
+            <h2>Agregar producto</h2>
+            <form id="productoForm" style="display:flex;gap:8px;flex-wrap:wrap">
+              <div class="field" style="margin-bottom:0;flex:1;min-width:160px"><label>Nombre</label><input id="productoNombre" required /></div>
+              <div class="field" style="margin-bottom:0;width:110px"><label>Precio</label><input id="productoPrecio" type="number" min="0" required /></div>
+              <div class="field" style="margin-bottom:0;width:90px"><label>Stock</label><input id="productoStock" type="number" min="0" value="0" /></div>
+              <div style="align-self:flex-end"><button type="submit" class="btn btn-accent">Agregar</button></div>
+            </form>
+          </div>
+          <div class="card-box">
+            <h2>Productos</h2>
+            <div class="table-wrap">
+              <table><thead><tr><th>Nombre</th><th>Precio</th><th>Stock</th><th>Estado</th><th></th></tr></thead><tbody id="productosBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div id="tabFactura" class="panel">
+          <div class="card-box">
+            <h2>Cargar stock por foto de factura</h2>
+            <p class="muted">Sube una foto clara de la factura. El sistema lee el texto (OCR) e intenta detectar cantidad y producto por línea — siempre revisá y corregí antes de aplicar, la lectura automática no es perfecta.</p>
+            <div class="upload-row">
+              <input type="file" id="facturaFile" accept="image/*" />
+              <button type="button" class="btn btn-accent" id="btnOcr">Leer factura</button>
+            </div>
+            <p id="ocrStatus" class="muted" hidden>Leyendo imagen…</p>
+            <div id="facturaItemsWrap" hidden style="margin-top:12px">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Cantidad</th><th>Producto detectado</th><th>Precio</th><th></th></tr></thead>
+                  <tbody id="facturaItemsBody"></tbody>
+                </table>
+              </div>
+              <button type="button" class="btn btn-accent" id="btnAplicarFactura" style="margin-top:12px">Aplicar al inventario</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/ui.js"></script>
+    <script src="/admin.js"></script>
+  </body>
+</html>
