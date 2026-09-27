@@ -259,6 +259,47 @@ textarea {
   background: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
 
+/* Nombre de persona en "letra de neón": script elegante, sin relleno,
+   solo el brillo delineando la letra — como un cartel de neón, no un
+   texto plano con color. Fondo siempre transparente. */
+.neon-name {
+  font-family: "Alex Brush", cursive;
+  font-size: 1.4em;
+  line-height: 1;
+  color: #fff8fb;
+  background: none;
+  text-shadow: 0 0 4px color-mix(in srgb, var(--accent) 90%, transparent), 0 0 11px
+      color-mix(in srgb, var(--accent) 70%, transparent), 0 0 22px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 42px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.persona-chip .neon-name {
+  font-size: 1.6em;
+  display: block;
+}
+
+.carrito-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-pop);
+}
+
+.carrito-bar span {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text);
+}
+
 /* Mismo sistema de tarjetas que el catálogo de VENTA-WEB (proyecto
    "padre" de este sub-servicio) — grid de tarjetas con foto, no lista. */
 .producto-grid {
@@ -425,9 +466,14 @@ th {
   background: none;
   cursor: pointer;
   color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 11.5px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .tabnav button.active {

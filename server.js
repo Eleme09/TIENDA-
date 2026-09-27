@@ -109,7 +109,21 @@ async function sbGetConsumo(id) {
   return data;
 }
 
-async function sbAnularConsumo(id, motivo) {
+const MOTIVOS_ANULACION = {
+  no_hay: 'No había stock',
+  no_quiere: 'La persona no lo quiso',
+};
+
+// "no_hay": se anotó pero en realidad no había producto físico — es un
+// error de conteo, así que el stock se deja en 0 (no se repone nada,
+// porque de haber stock real no se habría anotado esto) y el producto
+// queda marcado sin stock hasta que el dueño lo recargue.
+// "no_quiere": la persona se arrepintió, el producto vuelve físicamente
+// al estante — se repone la cantidad al stock, como antes.
+async function sbAnularConsumo(id, tipo) {
+  const motivo = MOTIVOS_ANULACION[tipo];
+  if (!motivo) throw Object.assign(new Error('Motivo de anulación inválido'), { status: 400 });
+
   const { data, error } = await supabase
     .from('tf_consumos')
     .update({ anulado: true, motivo_anulacion: motivo, anulado_at: new Date().toISOString() })
@@ -118,13 +132,16 @@ async function sbAnularConsumo(id, motivo) {
     .single();
   if (error) throw error;
 
-  // Repone el stock que se había descontado.
-  const { data: producto } = await supabase.from('tf_productos').select('stock').eq('id', data.producto_id).single();
-  if (producto) {
-    await supabase
-      .from('tf_productos')
-      .update({ stock: Number(producto.stock) + Number(data.cantidad) })
-      .eq('id', data.producto_id);
+  if (tipo === 'no_hay') {
+    await supabase.from('tf_productos').update({ stock: 0 }).eq('id', data.producto_id);
+  } else {
+    const { data: producto } = await supabase.from('tf_productos').select('stock').eq('id', data.producto_id).single();
+    if (producto) {
+      await supabase
+        .from('tf_productos')
+        .update({ stock: Number(producto.stock) + Number(data.cantidad) })
+        .eq('id', data.producto_id);
+    }
   }
   return data;
 }
@@ -316,27 +333,37 @@ app.get(
   })
 );
 
+// Registro tipo carrito: se manda de una sola vez todo lo elegido (varios
+// productos con su cantidad) y queda anotado completo en un solo paso —
+// nunca depender de que alguien recuerde apretar "Anotar" producto por
+// producto.
 app.post(
   '/api/consumos',
   pinLimiter,
   requirePersonaPin,
   asyncRoute(async (req, res) => {
-    const productoId = Number(req.body.producto_id);
-    const cantidad = Number(req.body.cantidad);
-    if (!productoId || !(cantidad > 0)) {
-      return res.status(400).json({ error: 'Producto o cantidad inválidos' });
-    }
-    const productos = await sbListProductos({ activeOnly: true });
-    const producto = productos.find((p) => p.id === productoId);
-    if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    if (items.length === 0) return res.status(400).json({ error: 'No hay productos para anotar' });
 
-    const consumo = await sbCreateConsumo({
-      personaId: req.persona.id,
-      productoId,
-      cantidad,
-      precioUnitario: producto.precio,
-    });
-    res.json(consumo);
+    const productos = await sbListProductos({ activeOnly: true });
+    const porAnotar = [];
+    for (const item of items) {
+      const productoId = Number(item.producto_id);
+      const cantidad = Number(item.cantidad);
+      if (!productoId || !(cantidad > 0)) return res.status(400).json({ error: 'Producto o cantidad inválidos' });
+      const producto = productos.find((p) => p.id === productoId);
+      if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
+      if (Number(producto.stock) < cantidad) {
+        return res.status(400).json({ error: `No hay suficiente stock de "${producto.nombre}"` });
+      }
+      porAnotar.push({ productoId, cantidad, precioUnitario: producto.precio });
+    }
+
+    const consumos = [];
+    for (const item of porAnotar) {
+      consumos.push(await sbCreateConsumo({ personaId: req.persona.id, ...item }));
+    }
+    res.json(consumos);
   })
 );
 
@@ -349,26 +376,31 @@ app.post(
   })
 );
 
+const ANULACION_LIMITE_MS = 15 * 60 * 1000;
+
 app.post(
   '/api/consumos/:id/anular',
   pinLimiter,
   asyncRoute(async (req, res) => {
     const consumoId = Number(req.params.id);
     const pin = lib.sanitizePin(req.body.pin);
-    const motivo = String(req.body.motivo || '').trim();
-    if (!motivo) return res.status(400).json({ error: 'Falta el motivo de la anulación' });
+    const tipo = String(req.body.tipo || '');
+    if (!MOTIVOS_ANULACION[tipo]) return res.status(400).json({ error: 'Motivo de anulación inválido' });
     if (!lib.isValidPin(pin)) return res.status(400).json({ error: 'PIN inválido' });
 
     const consumo = await sbGetConsumo(consumoId);
     if (!consumo) return res.status(404).json({ error: 'No encontrado' });
     if (consumo.anulado) return res.status(400).json({ error: 'Ya estaba anulado' });
+    if (Date.now() - new Date(consumo.created_at).getTime() > ANULACION_LIMITE_MS) {
+      return res.status(400).json({ error: 'Ya pasaron más de 15 minutos — no se puede anular.' });
+    }
 
     const persona = await sbGetPersona(consumo.persona_id);
     if (!persona || !lib.verifySecret(pin, persona.pin_hash)) {
       return res.status(401).json({ error: 'PIN incorrecto' });
     }
 
-    res.json(await sbAnularConsumo(consumoId, motivo));
+    res.json(await sbAnularConsumo(consumoId, tipo));
   })
 );
 

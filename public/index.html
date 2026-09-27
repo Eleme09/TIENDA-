@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Quicksand:wght@500;600;700&family=Alex+Brush&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -29,7 +29,7 @@
       <!-- Paso 2: PIN -->
       <section id="stepPin" hidden>
         <div class="card-box">
-          <h2>PIN de <span id="pinPersonaName"></span></h2>
+          <h2>PIN de <span id="pinPersonaName" class="neon-name"></span></h2>
           <form id="pinForm">
             <div class="field">
               <label for="pinInput">PIN (4 dígitos)</label>
@@ -44,7 +44,7 @@
       <!-- Paso 3: registrar consumo / ver historial -->
       <section id="stepMenu" hidden>
         <div class="card-box">
-          <h2>Hola, <span id="menuPersonaName"></span></h2>
+          <h2>Hola, <span id="menuPersonaName" class="neon-name"></span></h2>
           <div class="tabnav">
             <button type="button" class="tab-btn active" data-tab="tabAgregar">Anotar consumo</button>
             <button type="button" class="tab-btn" data-tab="tabHistorial">Mi historial</button>
@@ -52,6 +52,11 @@
 
           <div id="tabAgregar" class="panel active">
             <div id="productoList" class="producto-grid"></div>
+          </div>
+
+          <div id="carritoBar" class="carrito-bar" hidden>
+            <span id="carritoResumen"></span>
+            <button type="button" class="btn btn-accent" id="btnAnotarTodo">Anotar todo</button>
           </div>
 
           <div id="tabHistorial" class="panel">

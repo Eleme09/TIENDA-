@@ -17,6 +17,9 @@
     quincenaLabel: document.getElementById('quincenaLabel'),
     quincenaTotal: document.getElementById('quincenaTotal'),
     btnSalir: document.getElementById('btnSalir'),
+    carritoBar: document.getElementById('carritoBar'),
+    carritoResumen: document.getElementById('carritoResumen'),
+    btnAnotarTodo: document.getElementById('btnAnotarTodo'),
   };
 
   let business = null;
@@ -46,7 +49,7 @@
 
   function renderPersonas() {
     el.personaGrid.innerHTML = personas
-      .map((p) => `<button type="button" class="persona-chip" data-id="${p.id}">${escapeHtml(p.nombre)}</button>`)
+      .map((p) => `<button type="button" class="persona-chip" data-id="${p.id}"><span class="neon-name">${escapeHtml(p.nombre)}</span></button>`)
       .join('');
     el.personaGrid.querySelectorAll('.persona-chip').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -79,7 +82,6 @@
                 <span>${qty}</span>
                 <button type="button" class="qty-btn" data-id="${p.id}" data-delta="1" ${outOfStock ? 'disabled' : ''}>+</button>
               </div>
-              ${qty > 0 ? `<button type="button" class="btn btn-accent btn-sm btn-block" data-confirm="${p.id}" style="margin-top:6px">Anotar</button>` : ''}
             </div>
           </article>
         `;
@@ -90,27 +92,54 @@
       btn.addEventListener('click', () => {
         const id = Number(btn.dataset.id);
         const delta = Number(btn.dataset.delta);
-        qtyByProducto[id] = Math.max(0, (qtyByProducto[id] || 0) + delta);
+        const producto = productos.find((p) => p.id === id);
+        const max = producto ? Number(producto.stock) : Infinity;
+        qtyByProducto[id] = Math.min(max, Math.max(0, (qtyByProducto[id] || 0) + delta));
         renderProductos();
+        renderCarritoBar();
       });
-    });
-    el.productoList.querySelectorAll('[data-confirm]').forEach((btn) => {
-      btn.addEventListener('click', () => registrarConsumo(Number(btn.dataset.confirm)));
     });
   }
 
-  async function registrarConsumo(productoId) {
-    const cantidad = qtyByProducto[productoId] || 0;
-    if (cantidad <= 0) return;
+  // Todo lo elegido se anota junto, en un solo paso — no depende de que
+  // alguien recuerde apretar "Anotar" producto por producto.
+  function carritoItems() {
+    return Object.entries(qtyByProducto)
+      .filter(([, cantidad]) => cantidad > 0)
+      .map(([productoId, cantidad]) => ({ productoId: Number(productoId), cantidad }));
+  }
+
+  function renderCarritoBar() {
+    const items = carritoItems();
+    if (items.length === 0) {
+      el.carritoBar.hidden = true;
+      return;
+    }
+    const totalItems = items.reduce((sum, it) => sum + it.cantidad, 0);
+    const totalPrecio = items.reduce((sum, it) => {
+      const producto = productos.find((p) => p.id === it.productoId);
+      return sum + (producto ? producto.precio * it.cantidad : 0);
+    }, 0);
+    el.carritoResumen.textContent = `${totalItems} producto${totalItems === 1 ? '' : 's'} · ${formatMoney(totalPrecio)}`;
+    el.carritoBar.hidden = false;
+  }
+
+  async function registrarTodo() {
+    const items = carritoItems();
+    if (items.length === 0) return;
     try {
       const res = await fetch('/api/consumos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ persona_id: selectedPersona.id, pin: currentPin, producto_id: productoId, cantidad }),
+        body: JSON.stringify({
+          persona_id: selectedPersona.id,
+          pin: currentPin,
+          items: items.map((it) => ({ producto_id: it.productoId, cantidad: it.cantidad })),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo registrar');
-      qtyByProducto[productoId] = 0;
+      Object.keys(qtyByProducto).forEach((k) => delete qtyByProducto[k]);
       await refreshProductos();
       window.VW_UI.toast('Consumo anotado.', 'ok');
     } catch (err) {
@@ -118,9 +147,12 @@
     }
   }
 
+  el.btnAnotarTodo.addEventListener('click', registrarTodo);
+
   async function refreshProductos() {
     productos = await fetch('/api/productos').then((r) => r.json());
     renderProductos();
+    renderCarritoBar();
   }
 
   // Quincena colombiana estándar: 1-15 y 16-fin de mes. No hay envío
@@ -168,7 +200,9 @@
           ? `<span class="pill pill-warn">Anulado</span>`
           : `<span class="pill pill-ok">Vigente</span>`;
         const motivo = c.anulado ? escapeHtml(c.motivo_anulacion || '—') : '';
-        const anularBtn = c.anulado ? '' : `<button type="button" class="btn btn-sm" data-anular="${c.id}">Anular</button>`;
+        const dentroDePlazo = Date.now() - new Date(c.created_at).getTime() <= 15 * 60 * 1000;
+        const anularBtn =
+          c.anulado || !dentroDePlazo ? '' : `<button type="button" class="btn btn-sm" data-anular="${c.id}">Anular</button>`;
         return `<tr><td>${fecha}</td><td>${escapeHtml(nombre)}</td><td>${c.cantidad}</td><td>${total}</td><td>${estado}</td><td>${motivo}</td><td>${anularBtn}</td></tr>`;
       })
       .join('');
@@ -178,17 +212,46 @@
     });
   }
 
+  // Dos motivos fijos, no texto libre: "no hay" es un error real de stock
+  // (no se repone nada, el producto queda en 0 hasta recargar) y "no lo
+  // quiere" es que la persona se arrepintió (el producto vuelve al stock).
+  function elegirMotivoAnulacion() {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'vw-modal-overlay';
+      overlay.innerHTML = `
+        <div class="vw-modal-box">
+          <p>¿Por qué se anula este consumo?</p>
+          <div class="vw-modal-actions" style="justify-content:stretch;flex-direction:column">
+            <button type="button" class="btn btn-danger btn-block" data-tipo="no_hay">No había stock</button>
+            <button type="button" class="btn btn-accent btn-block" data-tipo="no_quiere" style="margin-top:8px">No lo quiso</button>
+            <button type="button" class="btn btn-block" id="btnCancelarMotivo" style="margin-top:8px">Cancelar</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      function close(result) {
+        overlay.remove();
+        resolve(result);
+      }
+      overlay.querySelectorAll('[data-tipo]').forEach((btn) => {
+        btn.addEventListener('click', () => close(btn.dataset.tipo));
+      });
+      overlay.querySelector('#btnCancelarMotivo').addEventListener('click', () => close(null));
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close(null);
+      });
+    });
+  }
+
   async function anularConsumo(consumoId) {
-    const motivo = window.prompt('¿Por qué anulas este consumo? (obligatorio)');
-    if (!motivo || !motivo.trim()) {
-      window.VW_UI.toast('Necesitas indicar el motivo.', 'error');
-      return;
-    }
+    const tipo = await elegirMotivoAnulacion();
+    if (!tipo) return;
     try {
       const res = await fetch(`/api/consumos/${consumoId}/anular`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: currentPin, motivo: motivo.trim() }),
+        body: JSON.stringify({ pin: currentPin, tipo }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo anular');
