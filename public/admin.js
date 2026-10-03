@@ -221,14 +221,21 @@
 
   async function mostrarDetallePersona(personaId, nombre) {
     const consumos = await apiFetch(`/api/admin/personas/${personaId}/consumos`);
+    let totalVigente = 0;
+    let itemsVigentes = 0;
     const rows = consumos
       .map((c) => {
         const fecha = new Date(c.created_at).toLocaleDateString('es-CO');
-        const total = formatMoney(Number(c.precio_unitario) * Number(c.cantidad));
+        const lineTotal = Number(c.precio_unitario) * Number(c.cantidad);
+        const total = formatMoney(lineTotal);
         const producto = c.tf_productos ? c.tf_productos.nombre : '';
         const estado = c.anulado ? '<span class="pill pill-warn">Anulado</span>' : '<span class="pill pill-ok">Vigente</span>';
         const motivo = c.anulado ? escapeHtml(c.motivo_anulacion || '—') : '';
         const anularBtn = c.anulado ? '' : `<button type="button" class="btn btn-sm" data-anular-admin="${c.id}">Anular</button>`;
+        if (!c.anulado) {
+          totalVigente += lineTotal;
+          itemsVigentes += Number(c.cantidad);
+        }
         return `<tr><td>${fecha}</td><td>${escapeHtml(producto)}</td><td>${c.cantidad}</td><td>${total}</td><td>${estado}</td><td>${motivo}</td><td>${anularBtn}</td></tr>`;
       })
       .join('');
@@ -237,7 +244,8 @@
     overlay.className = 'vw-modal-overlay';
     overlay.innerHTML = `
       <div class="vw-modal-box" style="max-width:700px">
-        <h2 style="margin:0 0 12px">Detalle de ${escapeHtml(nombre)}</h2>
+        <h2 style="margin:0 0 4px">Detalle de ${escapeHtml(nombre)}</h2>
+        <p class="muted" style="margin:0 0 12px">Total vigente: <strong>${formatMoney(totalVigente)}</strong> (${itemsVigentes} ítems)</p>
         <div class="table-wrap" style="max-height:60vh;overflow-y:auto">
           <table>
             <thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Total</th><th>Estado</th><th>Motivo</th><th></th></tr></thead>
@@ -278,12 +286,16 @@
           <td>${escapeHtml(p.nombre)}</td>
           <td>${p.activo ? '<span class="pill pill-ok">Activa</span>' : '<span class="pill pill-warn">Inactiva</span>'}</td>
           <td>
+            <button type="button" class="btn btn-sm btn-accent" data-ver-consumo="${p.id}" data-nombre="${escapeHtml(p.nombre)}">Ver consumo</button>
             <button type="button" class="btn btn-sm" data-editar-persona="${p.id}">Editar</button>
             <button type="button" class="btn btn-sm btn-danger" data-vaciar="${p.id}" data-nombre="${escapeHtml(p.nombre)}">Vaciar lista</button>
           </td>
         </tr>`
       )
       .join('');
+    el.personasBody.querySelectorAll('[data-ver-consumo]').forEach((btn) => {
+      btn.addEventListener('click', () => mostrarDetallePersona(Number(btn.dataset.verConsumo), btn.dataset.nombre));
+    });
     el.personasBody.querySelectorAll('[data-vaciar]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const nombre = btn.dataset.nombre;
