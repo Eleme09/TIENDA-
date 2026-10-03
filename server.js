@@ -58,6 +58,32 @@ async function sbCreatePersona(nombre, pin) {
   return data;
 }
 
+// Personas iniciales: PIN secuencial de 3 dígitos (001, 002, ...). Se crean
+// solo las que faltan por nombre — nunca se pisa el PIN de una persona que
+// ya existe.
+const PERSONAS_INICIALES = [
+  'Samantha', 'Estefanía', 'Valeria', 'Michelle', 'Hasblady', 'Marjorie', 'Tatiana', 'Angie', 'Camilo',
+];
+
+async function ensurePersonasIniciales() {
+  const existentes = await sbListPersonas();
+  const nombres = new Set(existentes.map((p) => p.nombre.trim().toLowerCase()));
+  for (let i = 0; i < PERSONAS_INICIALES.length; i++) {
+    const nombre = PERSONAS_INICIALES[i];
+    if (nombres.has(nombre.toLowerCase())) continue;
+    await sbCreatePersona(nombre, String(i + 1).padStart(3, '0'));
+    console.log('Persona inicial creada: ' + nombre);
+  }
+}
+
+// "Vaciar lista": borra de verdad todos los consumos de una persona (fase de
+// prueba). No toca el stock ni los datos de la persona.
+async function sbVaciarConsumosPersona(personaId) {
+  const { data, error } = await supabase.from('tf_consumos').delete().eq('persona_id', personaId).select('id');
+  if (error) throw error;
+  return data.length;
+}
+
 async function sbListProductos({ activeOnly = false } = {}) {
   let q = supabase.from('tf_productos').select('*').order('nombre');
   if (activeOnly) q = q.eq('activo', true);
@@ -471,8 +497,18 @@ app.post(
     const nombre = String(req.body.nombre || '').trim();
     const pin = lib.sanitizePin(req.body.pin);
     if (!nombre) return res.status(400).json({ error: 'Falta el nombre' });
-    if (!lib.isValidPin(pin)) return res.status(400).json({ error: 'El PIN debe tener 4 dígitos' });
+    if (!lib.isValidPin(pin)) return res.status(400).json({ error: 'El PIN debe tener 3 dígitos' });
     res.json(await sbCreatePersona(nombre, pin));
+  })
+);
+
+app.post(
+  '/api/admin/personas/:id/vaciar',
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!id || !(await sbGetPersona(id))) return res.status(404).json({ error: 'Persona no encontrada' });
+    res.json({ ok: true, eliminados: await sbVaciarConsumosPersona(id) });
   })
 );
 
@@ -610,4 +646,7 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: status === 500 ? 'Error interno' : err.message });
 });
 
-app.listen(PORT, () => console.log(`TIENDA- escuchando en :${PORT}`));
+app.listen(PORT, () => {
+  console.log(`TIENDA- escuchando en :${PORT}`);
+  ensurePersonasIniciales().catch((err) => console.error('No se pudieron crear las personas iniciales:', err));
+});

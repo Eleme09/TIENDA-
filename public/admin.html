@@ -76,7 +76,7 @@
             <h2>Agregar persona</h2>
             <form id="personaForm" class="row-inline" style="display:flex;gap:8px;flex-wrap:flex-end">
               <div class="field" style="margin-bottom:0;flex:1;min-width:160px"><label>Nombre</label><input id="personaNombre" required /></div>
-              <div class="field" style="margin-bottom:0;width:100px"><label>PIN (4 díg.)</label><input id="personaPin" maxlength="4" pattern="[0-9]{4}" required /></div>
+              <div class="field" style="margin-bottom:0;width:100px"><label>PIN (3 díg.)</label><input id="personaPin" maxlength="4" pattern="[0-9]{3,4}" required /></div>
               <div style="align-self:flex-end"><button type="submit" class="btn btn-accent">Agregar</button></div>
             </form>
           </div>

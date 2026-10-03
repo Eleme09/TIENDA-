@@ -38,7 +38,7 @@ function sanitizePin(raw) {
 }
 
 function isValidPin(raw) {
-  return /^\d{4}$/.test(String(raw ?? ''));
+  return /^\d{3,4}$/.test(String(raw ?? ''));
 }
 
 // Reporte de quincena: agrupa consumos (ya filtrados por fecha) por persona,

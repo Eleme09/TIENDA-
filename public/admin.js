@@ -181,9 +181,25 @@
     el.personasBody.innerHTML = data
       .map(
         (p) =>
-          `<tr><td>${escapeHtml(p.nombre)}</td><td>${p.activo ? '<span class="pill pill-ok">Activa</span>' : '<span class="pill pill-warn">Inactiva</span>'}</td><td></td></tr>`
+          `<tr><td>${escapeHtml(p.nombre)}</td><td>${p.activo ? '<span class="pill pill-ok">Activa</span>' : '<span class="pill pill-warn">Inactiva</span>'}</td><td><button type="button" class="btn btn-sm btn-danger" data-vaciar="${p.id}" data-nombre="${escapeHtml(p.nombre)}">Vaciar lista</button></td></tr>`
       )
       .join('');
+    el.personasBody.querySelectorAll('[data-vaciar]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const nombre = btn.dataset.nombre;
+        const ok = await window.VW_UI.confirmDialog(
+          `¿Vaciar la lista de ${nombre}? Se eliminan para siempre todos sus consumos. No se puede deshacer.`,
+          { confirmLabel: 'Vaciar lista' }
+        );
+        if (!ok) return;
+        try {
+          const r = await apiFetch(`/api/admin/personas/${btn.dataset.vaciar}/vaciar`, { method: 'POST' });
+          window.VW_UI.toast(`Lista de ${nombre} vaciada (${r.eliminados} consumos).`, 'ok');
+        } catch (err) {
+          window.VW_UI.toast(err.message, 'error');
+        }
+      });
+    });
   }
 
   el.personaForm.addEventListener('submit', async (e) => {

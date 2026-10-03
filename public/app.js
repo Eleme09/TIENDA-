@@ -266,8 +266,8 @@
   el.pinForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const pin = el.pinInput.value.trim();
-    if (!/^\d{4}$/.test(pin)) {
-      window.VW_UI.toast('El PIN debe tener 4 dígitos.', 'error');
+    if (!/^\d{3,4}$/.test(pin)) {
+      window.VW_UI.toast('El PIN debe tener 3 dígitos.', 'error');
       return;
     }
     // Se valida recién al primer POST (no hay endpoint de "solo validar PIN"

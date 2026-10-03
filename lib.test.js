@@ -15,6 +15,7 @@ test('sanitizePin / isValidPin', () => {
   assert.equal(lib.sanitizePin('12ab34'), '1234');
   assert.equal(lib.sanitizePin('12'), '12');
   assert.equal(lib.isValidPin('1234'), true);
+  assert.equal(lib.isValidPin('001'), true);
   assert.equal(lib.isValidPin('12'), false);
   assert.equal(lib.isValidPin('abcd'), false);
 });
