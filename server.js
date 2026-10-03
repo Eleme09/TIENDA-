@@ -34,6 +34,17 @@ async function sbGetConfig() {
   return data;
 }
 
+async function sbUpdateConfig(fields) {
+  const { data, error } = await supabase
+    .from('tf_negocio_config')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', 1)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 async function sbListPersonas({ activeOnly = false } = {}) {
   let q = supabase.from('tf_personas').select('id, nombre, activo, created_at').order('nombre');
   if (activeOnly) q = q.eq('activo', true);
@@ -52,6 +63,17 @@ async function sbCreatePersona(nombre, pin) {
   const { data, error } = await supabase
     .from('tf_personas')
     .insert({ nombre, pin_hash: lib.hashSecret(pin) })
+    .select('id, nombre, activo, created_at')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function sbUpdatePersona(id, fields) {
+  const { data, error } = await supabase
+    .from('tf_personas')
+    .update(fields)
+    .eq('id', id)
     .select('id, nombre, activo, created_at')
     .single();
   if (error) throw error;
@@ -107,6 +129,26 @@ async function sbUpdateProducto(id, fields) {
     .single();
   if (error) throw error;
   return data;
+}
+
+// Solo se puede borrar un producto de verdad si nunca tuvo consumos
+// registrados — si los tiene, borrarlo rompería la trazabilidad del
+// historial (el consumo quedaría apuntando a un producto que no existe).
+// En ese caso la única opción es desactivarlo.
+async function sbDeleteProducto(id) {
+  const { count, error: countError } = await supabase
+    .from('tf_consumos')
+    .select('id', { count: 'exact', head: true })
+    .eq('producto_id', id);
+  if (countError) throw countError;
+  if (count > 0) {
+    throw Object.assign(
+      new Error('Este producto ya tiene consumos registrados — no se puede eliminar, solo desactivar.'),
+      { status: 400 }
+    );
+  }
+  const { error } = await supabase.from('tf_productos').delete().eq('id', id);
+  if (error) throw error;
 }
 
 async function sbCreateConsumo({ personaId, productoId, cantidad, precioUnitario }) {
@@ -512,6 +554,28 @@ app.post(
   })
 );
 
+app.put(
+  '/api/admin/personas/:id',
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!id || !(await sbGetPersona(id))) return res.status(404).json({ error: 'Persona no encontrada' });
+    const fields = {};
+    if (req.body.nombre !== undefined) {
+      const nombre = String(req.body.nombre).trim();
+      if (!nombre) return res.status(400).json({ error: 'El nombre no puede quedar vacío' });
+      fields.nombre = nombre;
+    }
+    if (req.body.pin !== undefined && req.body.pin !== '') {
+      const pin = lib.sanitizePin(req.body.pin);
+      if (!lib.isValidPin(pin)) return res.status(400).json({ error: 'El PIN debe tener 3 dígitos' });
+      fields.pin_hash = lib.hashSecret(pin);
+    }
+    if (req.body.activo !== undefined) fields.activo = Boolean(req.body.activo);
+    res.json(await sbUpdatePersona(id, fields));
+  })
+);
+
 app.get(
   '/api/admin/productos',
   requireAdmin,
@@ -553,12 +617,64 @@ app.put(
   })
 );
 
+app.delete(
+  '/api/admin/productos/:id',
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await sbDeleteProducto(Number(req.params.id));
+    res.json({ ok: true });
+  })
+);
+
 app.get(
   '/api/admin/reporte',
   requireAdmin,
   asyncRoute(async (req, res) => {
     const consumos = await sbListConsumosRango(req.query.desde, req.query.hasta);
     res.json(lib.buildReporteQuincena(consumos));
+  })
+);
+
+app.get(
+  '/api/admin/negocio',
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    res.json(await sbGetConfig());
+  })
+);
+
+app.put(
+  '/api/admin/negocio',
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const fields = {};
+    if (req.body.name !== undefined) {
+      const name = String(req.body.name).trim();
+      if (!name) return res.status(400).json({ error: 'El nombre no puede quedar vacío' });
+      fields.name = name;
+    }
+    if (req.body.currency !== undefined) fields.currency = String(req.body.currency).trim().toUpperCase() || 'COP';
+    res.json(await sbUpdateConfig(fields));
+  })
+);
+
+// El dueño puede anular un consumo sin PIN y sin el límite de 15 minutos
+// que tiene la persona — para corregir un error que se nota después. El
+// motivo sigue siendo uno de los dos fijos (mismo manejo de stock que la
+// anulación normal).
+app.post(
+  '/api/admin/consumos/:id/anular',
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const consumoId = Number(req.params.id);
+    const tipo = String(req.body.tipo || '');
+    if (!MOTIVOS_ANULACION[tipo]) return res.status(400).json({ error: 'Motivo de anulación inválido' });
+
+    const consumo = await sbGetConsumo(consumoId);
+    if (!consumo) return res.status(404).json({ error: 'No encontrado' });
+    if (consumo.anulado) return res.status(400).json({ error: 'Ya estaba anulado' });
+
+    res.json(await sbAnularConsumo(consumoId, tipo));
   })
 );
 

@@ -52,6 +52,7 @@
           <button type="button" class="tab-btn" data-tab="tabPersonas">Personas</button>
           <button type="button" class="tab-btn" data-tab="tabProductos">Productos</button>
           <button type="button" class="tab-btn" data-tab="tabFactura">Cargar factura</button>
+          <button type="button" class="tab-btn" data-tab="tabNegocio">Negocio</button>
         </div>
 
         <div id="tabReporte" class="panel active">
@@ -61,6 +62,7 @@
               <div class="field" style="margin-bottom:0"><label>Desde</label><input type="date" id="reporteDesde" /></div>
               <div class="field" style="margin-bottom:0"><label>Hasta</label><input type="date" id="reporteHasta" /></div>
               <div style="align-self:flex-end"><button type="button" class="btn btn-accent" id="btnReporte">Generar</button></div>
+              <div style="align-self:flex-end"><button type="button" class="btn" id="btnExportarCsv">Exportar CSV</button></div>
             </div>
             <div class="table-wrap">
               <table>
@@ -131,6 +133,23 @@
               </div>
               <button type="button" class="btn btn-accent" id="btnAplicarFactura" style="margin-top:12px">Aplicar al inventario</button>
             </div>
+          </div>
+        </div>
+
+        <div id="tabNegocio" class="panel">
+          <div class="card-box" style="max-width:420px">
+            <h2>Datos del negocio</h2>
+            <form id="negocioForm">
+              <div class="field">
+                <label for="negocioNombre">Nombre</label>
+                <input id="negocioNombre" required />
+              </div>
+              <div class="field">
+                <label for="negocioMoneda">Moneda</label>
+                <input id="negocioMoneda" maxlength="3" />
+              </div>
+              <button type="submit" class="btn btn-accent">Guardar</button>
+            </form>
           </div>
         </div>
       </section>
