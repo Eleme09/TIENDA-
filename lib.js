@@ -115,11 +115,63 @@ function parseInvoiceLine(rawLine) {
   };
 }
 
+// Líneas que casi nunca son un producto: datos del negocio/cliente
+// (dirección, teléfono, NIT, correo), encabezados/pies de la factura
+// (fecha, forma de pago, subtotal, totales) y encabezados de columna de
+// la tabla. El OCR no distingue esto de un producto real — hay que
+// filtrarlo antes de intentar leer cantidad/precio.
+const JUNK_LINE_PATTERNS = [
+  /factura de venta/i,
+  /\bnit\b/i,
+  /\btel(?:[eé]fono)?\s*:/i,
+  /\bcalle\b/i,
+  /\bcra\.?\b/i,
+  /\bcarrera\b/i,
+  /\bavenida\b/i,
+  /\bav\.\s/i,
+  /\bcliente\s*:/i,
+  /direcci[oó]n\s*:/i,
+  /\bfecha\s+de\b/i,
+  /vencimiento/i,
+  /forma de pago/i,
+  /\bvendedor\s*:/i,
+  /\bsubtotal\b/i,
+  /\biva\s*\(/i,
+  /total a pagar/i,
+  /observaciones/i,
+  /gracias por su compra/i,
+  /documento de ejemplo/i,
+  /firma y sello/i,
+  /consumo masivo/i,
+  /\bs\.?a\.?s\.?\b/i,
+  /\bltda\.?\b/i,
+  /@/, // correos
+  /www\./i,
+  /\.com/i,
+  /^n[°º]\s/i,
+];
+
+function isJunkInvoiceLine(line) {
+  const trimmed = line.trim();
+  if (trimmed.length < 2) return true;
+  if (JUNK_LINE_PATTERNS.some((re) => re.test(trimmed))) return true;
+  // encabezado de columna de la tabla, o solo el número de fila (#)
+  if (/^(#|producto|descripci[oó]n|cant\.?|precio\s*unit\.?|iva|subtotal)$/i.test(trimmed)) return true;
+  if (/^\d{1,3}$/.test(trimmed)) return true;
+  // sin ninguna letra (teléfonos, NIT, códigos sueltos)
+  if (!/[a-zá-úñA-ZÁ-ÚÑ]/.test(trimmed)) return true;
+  // lista de nombres propios separados por coma, sin números (ej:
+  // "Pereira, Risaralda, Colombia") — una dirección/ciudad, no un producto.
+  if (/^([A-ZÁÉÍÓÚÑ][\wá-úñ.]*,\s*)+[A-ZÁÉÍÓÚÑ][\wá-úñ.]*$/.test(trimmed) && !/\d/.test(trimmed)) return true;
+  return false;
+}
+
 function parseInvoiceText(text) {
   return String(text || '')
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
+    .filter((l) => !isJunkInvoiceLine(l))
     .map(parseInvoiceLine)
     .filter(Boolean);
 }

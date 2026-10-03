@@ -534,6 +534,16 @@ th {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.upload-row input[type='file'] {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.upload-row button {
+  flex: none;
 }
 
 /* ── Toasts y modal (mismo patrón que VENTA-WEB) ── */

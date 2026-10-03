@@ -56,6 +56,33 @@ test('parseInvoiceText: ignora líneas vacías', () => {
   assert.equal(items.length, 2);
 });
 
+test('parseInvoiceText: filtra datos del negocio, dirección, encabezados y totales', () => {
+  const text = [
+    'Dulces El Antojo S.A.S',
+    'NIT: 901.234.567-8',
+    'Calle 12 # 23-45',
+    'Pereira, Risaralda, Colombia',
+    'Tel: 320 123 4567',
+    'ventas@dulceselantojo.com',
+    'FACTURA DE VENTA',
+    'Fecha de emisión: 03/10/2026',
+    'Cliente: Cliente de ejemplo',
+    'Dirección: Pereira, Risaralda',
+    '# PRODUCTO DESCRIPCIÓN CANT. PRECIO UNIT. IVA SUBTOTAL',
+    '1',
+    '2 Milo Bebida en polvo Milo 400 g 28000',
+    'SUBTOTAL 187900',
+    'IVA (19%) 35701',
+    'TOTAL A PAGAR 223601',
+    'Gracias por su compra.',
+  ].join('\n');
+  const items = lib.parseInvoiceText(text);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].nombre, 'Milo Bebida en polvo Milo 400 g');
+  assert.equal(items[0].cantidad, 2);
+  assert.equal(items[0].precio, 28000);
+});
+
 test('buildReporteQuincena: agrupa por persona, separa anulados del total', () => {
   const consumos = [
     { persona_id: 1, persona_nombre: 'Juan', cantidad: 2, precio_unitario: 1000, anulado: false },
