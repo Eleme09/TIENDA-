@@ -95,6 +95,7 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-height: 40px;
   padding: 10px 16px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
@@ -143,6 +144,7 @@ textarea {
 }
 
 .btn-sm {
+  min-height: 34px;
   padding: 7px 11px;
   font-size: 12.5px;
 }
@@ -620,8 +622,84 @@ th {
   gap: 8px;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .container {
     padding: 16px 12px;
+  }
+
+  /* Toda tabla del sitio (Personas, Productos, Reporte, historial del
+     autoservicio, detalle de consumo) pasa de grilla angosta de columnas
+     a tarjetas apiladas — una tabla de 5-6 columnas no entra en una
+     pantalla de celular sin scroll horizontal, y con varios botones por
+     fila quedaba ilegible. Cada <tr> se convierte en una tarjeta, cada
+     <td> en una línea dentro de ella. */
+  .table-wrap table,
+  .table-wrap tbody,
+  .table-wrap tr {
+    display: block;
+    width: 100%;
+  }
+
+  .table-wrap thead {
+    display: none;
+  }
+
+  .table-wrap tr {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .table-wrap td {
+    display: block;
+    width: 100%;
+    padding: 4px 0;
+    border: none;
+  }
+
+  .table-wrap td:empty {
+    display: none;
+  }
+
+  /* Varios botones juntos en una fila (Editar/Vaciar/Ver consumo, etc.)
+     se apilan a todo el ancho, cada uno fácil de tocar. */
+  td .btn + .btn {
+    margin-top: 6px;
+  }
+
+  td .btn {
+    display: flex;
+    width: 100%;
+  }
+
+  /* Formularios en fila (agregar persona/producto, filtros de reporte)
+     se apilan uno debajo del otro en vez de amontonarse. */
+  .row-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .row-inline > * {
+    width: 100%;
+  }
+
+  .row-inline .btn {
+    width: 100%;
+  }
+
+  /* Los botones de los modales (confirmar/cancelar, elegir motivo) se
+     apilan a todo el ancho — más fácil de tocar que en fila angosta. */
+  .vw-modal-actions {
+    flex-direction: column;
+  }
+
+  .vw-modal-actions .btn {
+    width: 100%;
+  }
+
+  .vw-modal-box {
+    width: calc(100% - 24px);
   }
 }
