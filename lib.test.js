@@ -83,6 +83,54 @@ test('parseInvoiceText: filtra datos del negocio, dirección, encabezados y tota
   assert.equal(items[0].precio, 28000);
 });
 
+test('parseInvoicePosRow: lee recibo de caja (código, descripción, cant., vr.unit, vr.total)', () => {
+  const r = lib.parseInvoiceLine('7702001000012  Malta Pony 330 ml                 6     $3.000    $18.000');
+  assert.equal(r.cantidad, 6);
+  assert.equal(r.nombre, 'Malta Pony 330 ml');
+  assert.equal(r.precio, 3000);
+});
+
+test('parseInvoicePosRow: no confunde "x N" dentro del nombre con la cantidad', () => {
+  const r = lib.parseInvoiceLine('7704000008227  Caja de galletas Festival x 20     1    $42.000    $42.000');
+  assert.equal(r.cantidad, 1);
+  assert.equal(r.nombre, 'Caja de galletas Festival x 20');
+  assert.equal(r.precio, 42000);
+});
+
+test('parseInvoiceText: recibo de caja completo — solo quedan los productos', () => {
+  const text = [
+    'SUPERMERCADO LA ECONOMÍA',
+    'NIT: 901.234.567-8',
+    'Calle 15 # 23-47',
+    'Tel: 320 123 4567',
+    'FACTURA DE VENTA',
+    'No. FE-0001256',
+    'Fecha: 03/10/2026',
+    'Hora: 14:32:15',
+    'Cajero: 001 - Laura',
+    'Caja: 2',
+    'CÓDIGO          DESCRIPCIÓN                    CANT.  VR. UNIT.  VR. TOTAL',
+    '7702001000012  Malta Pony 330 ml                 6     $3.000    $18.000',
+    '7706000078901  Chicles Trident unidad             20    $1.000    $20.000',
+    'SUBTOTAL   $251.700',
+    'DESCUENTO  $0',
+    'IVA (19%)  $47.823',
+    'TOTAL A PAGAR  $299.523',
+    'FORMA DE PAGO',
+    'Efectivo   $300.000',
+    'Cambio     $477',
+    '¡GRACIAS POR SU COMPRA!',
+    'Productos de calidad, al mejor precio.',
+    'Esta es una factura de ejemplo sin validez fiscal.',
+  ].join('\n');
+  const items = lib.parseInvoiceText(text);
+  assert.equal(items.length, 2);
+  assert.deepEqual(
+    items.map((i) => i.nombre),
+    ['Malta Pony 330 ml', 'Chicles Trident unidad']
+  );
+});
+
 test('buildReporteQuincena: agrupa por persona, separa anulados del total', () => {
   const consumos = [
     { persona_id: 1, persona_nombre: 'Juan', cantidad: 2, precio_unitario: 1000, anulado: false },

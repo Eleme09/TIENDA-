@@ -68,6 +68,26 @@ function buildReporteQuincena(consumos) {
   return Array.from(porPersona.values()).sort((a, b) => b.total - a.total);
 }
 
+// Formato de recibo de caja/surtidora (el más común en el mercado):
+// "CÓDIGO  DESCRIPCIÓN  CANT.  VR.UNIT  VR.TOTAL" en una sola línea, ej.
+// "7702001000012  Malta Pony 330 ml   6   $3.000   $18.000". Se intenta
+// primero porque es más confiable que la heurística genérica — acá la
+// cantidad y el precio están en columnas fijas, no hay que adivinar si
+// un número suelto es cantidad o parte del nombre.
+function parseInvoicePosRow(line) {
+  const m = line.match(/^(\d{6,14})\s+(.+?)\s+(\d{1,4})\s+\$?\s?([\d.,]{3,})\s+\$?\s?([\d.,]{3,})\s*$/);
+  if (!m) return null;
+  const [, , nombreRaw, cantidadRaw, precioUnitRaw] = m;
+  const nombre = nombreRaw.trim();
+  if (!nombre) return null;
+  return {
+    raw: line,
+    cantidad: Number(cantidadRaw),
+    nombre,
+    precio: Number(precioUnitRaw.replace(/[.,]/g, '')) || null,
+  };
+}
+
 // Parseo heurístico de una línea de factura OCR: "2 Bolsa de papas 3500" o
 // "Gasas x30 12000" → { cantidad, nombre, precio }. Es una heurística, no
 // magia — por eso el flujo de factura siempre muestra esto en una tabla
@@ -75,6 +95,9 @@ function buildReporteQuincena(consumos) {
 function parseInvoiceLine(rawLine) {
   const line = String(rawLine || '').trim();
   if (!line) return null;
+
+  const posRow = parseInvoicePosRow(line);
+  if (posRow) return posRow;
 
   let rest = line;
 
@@ -131,24 +154,39 @@ const JUNK_LINE_PATTERNS = [
   /\bav\.\s/i,
   /\bcliente\s*:/i,
   /direcci[oó]n\s*:/i,
+  /^fecha\s*:/i,
   /\bfecha\s+de\b/i,
+  /^hora\s*:/i,
+  /^cajero\s*:/i,
+  /^caja\s*:/i,
   /vencimiento/i,
   /forma de pago/i,
   /\bvendedor\s*:/i,
   /\bsubtotal\b/i,
+  /\bdescuento\b/i,
   /\biva\s*\(/i,
   /total a pagar/i,
+  /^(efectivo|cambio)\b/i,
   /observaciones/i,
   /gracias por su compra/i,
   /documento de ejemplo/i,
   /firma y sello/i,
   /consumo masivo/i,
+  /validez fiscal/i,
+  /mejor precio/i,
+  /calidad garantizada/i,
+  /atenci[oó]n al cliente/i,
+  /no se aceptan devoluciones/i,
+  /conserve su (factura|recibo|comprobante)/i,
   /\bs\.?a\.?s\.?\b/i,
   /\bltda\.?\b/i,
   /@/, // correos
   /www\./i,
   /\.com/i,
   /^n[°º]\s/i,
+  /^no\.?\s/i,
+  // encabezado de columnas del recibo de caja ("CÓDIGO  DESCRIPCIÓN  CANT. ...")
+  /^c[oó]digo\b.*descripci[oó]n/i,
 ];
 
 function isJunkInvoiceLine(line) {
@@ -156,13 +194,20 @@ function isJunkInvoiceLine(line) {
   if (trimmed.length < 2) return true;
   if (JUNK_LINE_PATTERNS.some((re) => re.test(trimmed))) return true;
   // encabezado de columna de la tabla, o solo el número de fila (#)
-  if (/^(#|producto|descripci[oó]n|cant\.?|precio\s*unit\.?|iva|subtotal)$/i.test(trimmed)) return true;
+  if (/^(#|producto|descripci[oó]n|cant\.?|precio\s*unit\.?|vr\.?\s*unit\.?|vr\.?\s*total|iva|subtotal)$/i.test(trimmed))
+    return true;
   if (/^\d{1,3}$/.test(trimmed)) return true;
   // sin ninguna letra (teléfonos, NIT, códigos sueltos)
   if (!/[a-zá-úñA-ZÁ-ÚÑ]/.test(trimmed)) return true;
   // lista de nombres propios separados por coma, sin números (ej:
   // "Pereira, Risaralda, Colombia") — una dirección/ciudad, no un producto.
   if (/^([A-ZÁÉÍÓÚÑ][\wá-úñ.]*,\s*)+[A-ZÁÉÍÓÚÑ][\wá-úñ.]*$/.test(trimmed) && !/\d/.test(trimmed)) return true;
+  // línea en MAYÚSCULA sostenida sin ningún dígito: nombre del negocio,
+  // título de la factura, banner de agradecimiento, etc. — un producto
+  // real en este formato siempre va en formato Título, nunca todo en caps.
+  if (trimmed.length > 4 && !/\d/.test(trimmed) && trimmed === trimmed.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(trimmed)) {
+    return true;
+  }
   return false;
 }
 
