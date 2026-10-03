@@ -62,7 +62,7 @@ async function sbCreatePersona(nombre, pin) {
 // solo las que faltan por nombre — nunca se pisa el PIN de una persona que
 // ya existe.
 const PERSONAS_INICIALES = [
-  'Samantha', 'Estefanía', 'Valeria', 'Michelle', 'Hasblady', 'Marjorie', 'Tatiana', 'Angie', 'Camilo',
+  'Samantha', 'Estefanía', 'Valeria', 'Michelle', 'Jazbleidy', 'Maryuri', 'Tatiana', 'Angie', 'Camilo',
 ];
 
 async function ensurePersonasIniciales() {
