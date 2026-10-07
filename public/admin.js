@@ -615,6 +615,7 @@
       facturaItems = data.items.map((it) => ({ ...it }));
       renderFacturaItems();
       el.facturaItemsWrap.hidden = false;
+      el.btnAplicarFactura.disabled = false;
       if (facturaItems.length === 0) {
         window.VW_UI.toast('No se detectaron líneas — revisa la foto o carga los productos manualmente.', 'error');
       }
@@ -627,6 +628,8 @@
   });
 
   el.btnAplicarFactura.addEventListener('click', async () => {
+    if (el.btnAplicarFactura.disabled) return;
+    el.btnAplicarFactura.disabled = true;
     const items = facturaItems.map((it) => {
       const match = productosCache.find((p) => p.nombre.toLowerCase() === it.nombre.toLowerCase());
       return match
@@ -646,6 +649,7 @@
       await loadProductos();
     } catch (err) {
       window.VW_UI.toast(err.message, 'error');
+      el.btnAplicarFactura.disabled = false;
     }
   });
 

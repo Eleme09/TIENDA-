@@ -126,7 +126,8 @@
 
   async function registrarTodo() {
     const items = carritoItems();
-    if (items.length === 0) return;
+    if (items.length === 0 || el.btnAnotarTodo.disabled) return;
+    el.btnAnotarTodo.disabled = true;
     try {
       const res = await fetch('/api/consumos', {
         method: 'POST',
@@ -144,6 +145,8 @@
       window.VW_UI.toast('Consumo anotado.', 'ok');
     } catch (err) {
       window.VW_UI.toast(err.message, 'error');
+    } finally {
+      el.btnAnotarTodo.disabled = false;
     }
   }
 
