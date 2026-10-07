@@ -187,6 +187,23 @@ const JUNK_LINE_PATTERNS = [
   /^no\.?\s/i,
   // encabezado de columnas del recibo de caja ("CÓDIGO  DESCRIPCIÓN  CANT. ...")
   /^c[oó]digo\b.*descripci[oó]n/i,
+  // pie de factura electrónica DIAN: resumen de impuestos, resolución, QR, etc.
+  /atendido por/i,
+  /num\.?\s*art/i,
+  /resoluci[oó]n dian/i,
+  /\bvigencia\b/i,
+  /\bcufe\b/i,
+  /resumen de impuestos/i,
+  /^id\s+total\s+base\s+iva/i,
+  /^total\b/i,
+  /consumidor final/i,
+  /emisi[oó]n/i,
+  /valor pagado/i,
+  /sistema pos/i,
+  /facturador electr[oó]nico/i,
+  /electr[oó]nica de venta/i,
+  // fila de resumen de IVA/exento ("5 = EXENTO 28,750 ..." / "A 19% 46,000 ...")
+  /^[a-z0-9]\s*=?\s*(exento\b|\d+%)/i,
 ];
 
 function isJunkInvoiceLine(line) {
@@ -199,6 +216,8 @@ function isJunkInvoiceLine(line) {
   if (/^\d{1,3}$/.test(trimmed)) return true;
   // sin ninguna letra (teléfonos, NIT, códigos sueltos)
   if (!/[a-zá-úñA-ZÁ-ÚÑ]/.test(trimmed)) return true;
+  // encabezado de columnas con cualquier orden ("PLU UM VALOR U CÓDIGO DESCRIPCIÓN ...")
+  if (/c[oó]digo/i.test(trimmed) && /descripci[oó]n/i.test(trimmed)) return true;
   // lista de nombres propios separados por coma, sin números (ej:
   // "Pereira, Risaralda, Colombia") — una dirección/ciudad, no un producto.
   if (/^([A-ZÁÉÍÓÚÑ][\wá-úñ.]*,\s*)+[A-ZÁÉÍÓÚÑ][\wá-úñ.]*$/.test(trimmed) && !/\d/.test(trimmed)) return true;
@@ -211,14 +230,119 @@ function isJunkInvoiceLine(line) {
   return false;
 }
 
+// Factura electrónica DIAN, una fila por línea:
+// "1 23 UN 1,250 7700304504916 LECHE ENTERA 28,750 5"
+//  ítem cant UM  vr.unit        código        descripción    vr.total  id-iva
+function parseInvoiceDianRow(line) {
+  const m = line.match(
+    /^\d{1,3}\s+(\d{1,4})\s*UN\s+([\d.,]+)\s+(\d{8,14})\s+(.+?)\s+([\d.,]{3,})\s+[A-Z0-9]\s*$/i
+  );
+  if (!m) return null;
+  const [, cantidadRaw, precioUnitRaw, codigo, nombreRaw, ] = m;
+  const nombre = nombreRaw.trim();
+  if (!nombre) return null;
+  return {
+    raw: line,
+    cantidad: Number(cantidadRaw),
+    nombre,
+    precio: Number(precioUnitRaw.replace(/[.,]/g, '')) || null,
+    codigo,
+  };
+}
+
+// Recibo de caja registradora (ej. "SURTITIENDAS"), formato de varias
+// líneas por producto:
+//   53016 DE TODITO X12          <- código + nombre
+//     ---X 12          29800     <- cantidad + valor total
+//     6.00 x $2500                <- desglose de precio por unidad interna (se ignora)
+// A veces hay una segunda línea de "fracción" para el mismo producto
+// (venta de una caja incompleta), que se suma a la cantidad/total:
+//     ---_F/X 1        15000
+function parseCajaCodeNameLine(line) {
+  const m = line.match(/^\d{4,6}\s+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9/.\s]{2,})$/);
+  if (!m) return null;
+  const nombre = m[1].trim().replace(/\s{2,}/g, ' ');
+  if (!nombre || /^\d+$/.test(nombre)) return null;
+  return { nombre };
+}
+
+function parseCajaQtyLine(line) {
+  const m = line.match(/^-{1,4}\s*(?:_F\/)?[Xx*]\s*(\d{1,4})\s*(?:UNDS?|UN)?\s+\$?\s?([\d.,]{3,})\s*$/);
+  if (!m) return null;
+  const [, cantidadRaw, totalRaw] = m;
+  return { cantidad: Number(cantidadRaw), total: Number(totalRaw.replace(/[.,]/g, '')) || 0 };
+}
+
+function isCajaBreakdownLine(line) {
+  return /^\d+(?:\.\d{1,2})?\s*x\s*\$?[\d.,]+$/i.test(line);
+}
+
 function parseInvoiceText(text) {
-  return String(text || '')
+  const lines = String(text || '')
     .split('\n')
     .map((l) => l.trim())
-    .filter(Boolean)
-    .filter((l) => !isJunkInvoiceLine(l))
-    .map(parseInvoiceLine)
     .filter(Boolean);
+
+  const results = [];
+  let pending = null; // producto de caja en curso, esperando su línea de cantidad/precio
+
+  function flushPending() {
+    if (pending && pending.cantidad > 0) {
+      results.push({
+        raw: pending.raw,
+        cantidad: pending.cantidad,
+        nombre: pending.nombre,
+        precio: pending.total > 0 ? Math.round(pending.total / pending.cantidad) : null,
+      });
+    }
+    pending = null;
+  }
+
+  for (const line of lines) {
+    if (isJunkInvoiceLine(line)) continue;
+
+    const dian = parseInvoiceDianRow(line);
+    if (dian) {
+      flushPending();
+      results.push(dian);
+      continue;
+    }
+
+    const qty = parseCajaQtyLine(line);
+    if (qty) {
+      if (pending) {
+        pending.cantidad += qty.cantidad;
+        pending.total += qty.total;
+      }
+      continue;
+    }
+
+    if (isCajaBreakdownLine(line)) continue;
+
+    const code = parseCajaCodeNameLine(line);
+    if (code) {
+      flushPending();
+      pending = { raw: line, nombre: code.nombre, cantidad: 0, total: 0 };
+      continue;
+    }
+
+    flushPending();
+    const generic = parseInvoiceLine(line);
+    if (generic) results.push(generic);
+  }
+  flushPending();
+
+  // desambiguar productos con el mismo nombre pero código distinto
+  // (ej. dos presentaciones de "Bebida de Yog" en la misma factura)
+  const nombreCounts = new Map();
+  for (const r of results) nombreCounts.set(r.nombre, (nombreCounts.get(r.nombre) || 0) + 1);
+  for (const r of results) {
+    if (r.codigo && nombreCounts.get(r.nombre) > 1) {
+      r.nombre = `${r.nombre} (${r.codigo})`;
+    }
+  }
+
+  return results;
 }
 
 module.exports = {
@@ -229,5 +353,6 @@ module.exports = {
   isValidPin,
   buildReporteQuincena,
   parseInvoiceLine,
+  parseInvoiceDianRow,
   parseInvoiceText,
 };

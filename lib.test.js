@@ -131,6 +131,95 @@ test('parseInvoiceText: recibo de caja completo — solo quedan los productos', 
   );
 });
 
+test('parseInvoiceText: recibo de caja multilínea (código+nombre / ---X cant total)', () => {
+  const text = [
+    '53016 DE TODITO X12',
+    '---X 12          29800',
+    '53018 PAPAS MARGARITA',
+    '---X 12          18600',
+    '53019 DORITOS',
+    '---X 10          33000',
+    '2.00 x $16500',
+  ].join('\n');
+  const items = lib.parseInvoiceText(text);
+  assert.deepEqual(
+    items.map((i) => [i.nombre, i.cantidad, i.precio]),
+    [
+      ['DE TODITO X12', 12, 2483],
+      ['PAPAS MARGARITA', 12, 1550],
+      ['DORITOS', 10, 3300],
+    ]
+  );
+});
+
+test('parseInvoiceText: recibo de caja con línea de fracción (_F/X) suma a la misma cantidad', () => {
+  const text = ['53016 DE TODITO X12', '---X 12          29800', '---_F/X 1        15000'].join('\n');
+  const items = lib.parseInvoiceText(text);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].nombre, 'DE TODITO X12');
+  assert.equal(items[0].cantidad, 13);
+});
+
+test('parseInvoiceText: variantes con UN/UNDS pegado al número y con un solo guion', () => {
+  const text = [
+    '45026 LECHERITA X 30GR',
+    '---X 26UN          24800',
+    '53032 GALLETA CHOKIS',
+    '-X 6 UNDS          16400',
+  ].join('\n');
+  const items = lib.parseInvoiceText(text);
+  assert.deepEqual(
+    items.map((i) => [i.nombre, i.cantidad]),
+    [
+      ['LECHERITA X 30GR', 26],
+      ['GALLETA CHOKIS', 6],
+    ]
+  );
+});
+
+test('parseInvoiceDianRow: factura electrónica DIAN, una fila por línea', () => {
+  const r = lib.parseInvoiceDianRow('1 23 UN 1,250 7700304504916 LECHE ENTERA 28,750 5');
+  assert.equal(r.cantidad, 23);
+  assert.equal(r.nombre, 'LECHE ENTERA');
+  assert.equal(r.precio, 1250);
+  assert.equal(r.codigo, '7700304504916');
+});
+
+test('parseInvoiceText: factura DIAN completa, diferencia productos con mismo nombre y distinto código', () => {
+  const text = [
+    'Consumidor Final C.C: 2222222222',
+    'Emision Dian: 2026-10-06 15:08:02',
+    'PLU UM VALOR U CODIGO DESCRIPCION VALOR ID',
+    '1 23 UN 1,250 7700304504916 LECHE ENTERA 28,750 5',
+    '2 10 UN 1,100 7700304581016 BEBIDA DE YOG 11,000 A',
+    '3 10 UN 1,100 7700304364022 BEBIDA DE YOG 11,000 A',
+    '4 20 UN 1,200 7700304141142 BEBIDA DE AVE 24,000 A',
+    'TOTAL 74,750',
+    'FORMA DE PAGO: CONTADO - VALOR PAGADO 74,750',
+    'EFECTIVO $ 74,800',
+    'CAMBIO 50',
+    'RESUMEN DE IMPUESTOS',
+    'ID TOTAL BASE IVA',
+    '5 = EXENTO 28,750 28,750 0',
+    'A 19% 46,000 38,656 7,344',
+    'SISTEMA POS ARS DE: NCR COLOMBIA LTDA NIT 860.005.074-8',
+    'FACTURADOR ELECTRONICO: E factura Cadena Nit 890.930.534',
+    'ATENDIDO POR: ALEJANDRA USMA 223361',
+    'NUM ART ENTREGADOS:63 TRX: 0112 04 6901',
+    'RESOLUCION DIAN 18764095058621 DE 20250701 PREFIJO I8K3',
+    'DE 32277 HASTA 1999999 VIGENCIA 18 MESES',
+    'ELECTRONICA DE VENTA I8K371254',
+    'CUFE 12f85d8cce8dc1c89520418540ab1dfa6229cc57',
+  ].join('\n');
+  const items = lib.parseInvoiceText(text);
+  assert.deepEqual(
+    items.map((i) => i.nombre),
+    ['LECHE ENTERA', 'BEBIDA DE YOG (7700304581016)', 'BEBIDA DE YOG (7700304364022)', 'BEBIDA DE AVE']
+  );
+  assert.equal(items[0].cantidad, 23);
+  assert.equal(items[3].cantidad, 20);
+});
+
 test('buildReporteQuincena: agrupa por persona, separa anulados del total', () => {
   const consumos = [
     { persona_id: 1, persona_nombre: 'Juan', cantidad: 2, precio_unitario: 1000, anulado: false },
