@@ -642,6 +642,16 @@ function validarQuincena(inicio, fin) {
   return (d1 === 1 && d2 === 15) || (d1 === 16 && d2 === ultimo);
 }
 
+// Día de pago de una quincena: la 1-15 se paga el 20 del mismo mes; la 16-fin, el 5 del mes siguiente.
+function fechaPagoQuincena(inicio) {
+  const [y, m, d] = inicio.split('-').map(Number);
+  const pad = (n) => String(n).padStart(2, '0');
+  if (d === 1) return `${y}-${pad(m)}-20`;
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  return `${ny}-${pad(nm)}-05`;
+}
+
 function hoyColombia() {
   return new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10);
 }
@@ -744,14 +754,17 @@ async function sbDesprendiblesPersona(personaId) {
     });
 }
 
-// Pagos pendientes de una persona: quincenas cerradas con deuda sin pagar.
+// Pagos pendientes de una persona: quincenas cerradas con deuda sin pagar
+// cuyo día de pago (20 o 5) ya llegó. Antes de ese día no se le pide nada.
 async function sbDeudasPersona(personaId) {
   const cierres = await sbListCierres();
+  const hoy = hoyColombia();
   const out = [];
   for (const c of cierres) {
     const r = c.detalle.find((x) => x.persona_id === personaId);
-    if (r && !r.pagado && Number(r.total) > 0) {
-      out.push({ cierre_id: c.id, inicio: c.periodo_inicio, fin: c.periodo_fin, total: r.total });
+    const fechaPago = fechaPagoQuincena(c.periodo_inicio);
+    if (r && !r.pagado && Number(r.total) > 0 && hoy >= fechaPago) {
+      out.push({ cierre_id: c.id, inicio: c.periodo_inicio, fin: c.periodo_fin, total: r.total, fecha_pago: fechaPago });
     }
   }
   return out;
