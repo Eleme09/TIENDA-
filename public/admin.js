@@ -219,7 +219,7 @@
           const filas = c.detalle
             .map(
               (r) =>
-                `<tr><td>${escapeHtml(r.persona_nombre)}</td><td>${r.items}</td><td><strong>${formatMoney(r.total)}</strong></td><td><label><input type="checkbox" data-pago="${c.id}:${r.persona_id}" ${r.pagado ? 'checked' : ''} /> ${r.pagado ? 'Pagado' : 'Pendiente'}</label></td></tr>`
+                `<tr><td>${escapeHtml(r.persona_nombre)}</td><td>${r.items}</td><td><strong>${formatMoney(r.total)}</strong></td><td><label><input type="checkbox" data-pago="${c.id}:${r.persona_id}" ${r.pagado ? 'checked' : ''} /> ${r.pagado ? 'Pagado' : 'Pendiente'}</label>${r.comprobante_url ? ` · <a href="${escapeHtml(r.comprobante_url)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}</td></tr>`
             )
             .join('') || '<tr><td colspan="4" class="muted">Sin consumos.</td></tr>';
           return `<details class="card-box" style="margin-top:8px"><summary><strong>${labelQuincena(c.periodo_inicio, c.periodo_fin)}</strong> · Total ${formatMoney(c.total)} · Por cobrar ${formatMoney(pendiente)}</summary>
@@ -232,6 +232,10 @@
       cb.addEventListener('change', async () => {
         const [id, personaId] = cb.dataset.pago.split(':').map(Number);
         try {
+          if (!cb.checked && !window.confirm('¿Marcar como pendiente? Se descarta el comprobante y la persona volverá a ver el aviso de pago.')) {
+            cb.checked = true;
+            return;
+          }
           await apiFetch(`/api/admin/cierres/${id}/pago`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -276,7 +280,7 @@
                   `<tr${l.anulado ? ' style="opacity:.55;text-decoration:line-through"' : ''}><td>${new Date(l.fecha).toLocaleDateString('es-CO')}</td><td>${escapeHtml(l.producto)}</td><td>${l.cantidad}</td><td>${formatMoney(l.precio_unitario)}</td><td>${formatMoney(l.subtotal)}</td></tr>`
               )
               .join('');
-            const pago = q.pagado === null ? '' : q.pagado ? ' · <span class="pill">Pagado</span>' : ' · <span class="pill pill-warn">Pendiente de pago</span>';
+            const pago = q.pagado === null ? '' : q.pagado ? ` · <span class="pill pill-ok">Pagado</span>${q.comprobante_url ? ` <a href="${escapeHtml(q.comprobante_url)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}` : ' · <span class="pill pill-warn">Pendiente de pago</span>';
             return `<details class="card-box" style="margin-top:8px"${i === 0 ? ' open' : ''}><summary><strong>${labelQuincena(q.inicio, q.fin)}</strong> · ${formatMoney(q.total)} · ${ESTADO_DESPR[q.estado]}${pago}</summary>
               <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>${filas}</tbody>
               <tfoot><tr><td colspan="4"><strong>Total a cobrar</strong></td><td><strong>${formatMoney(q.total)}</strong></td></tr></tfoot></table></div>

@@ -9,6 +9,15 @@
     pinPersonaName: document.getElementById('pinPersonaName'),
     pinForm: document.getElementById('pinForm'),
     pinInput: document.getElementById('pinInput'),
+    deudaBanner: document.getElementById('deudaBanner'),
+    deudaTexto: document.getElementById('deudaTexto'),
+    btnSubirComprobante: document.getElementById('btnSubirComprobante'),
+    comprobanteOverlay: document.getElementById('comprobanteOverlay'),
+    comprobanteDetalle: document.getElementById('comprobanteDetalle'),
+    comprobanteFile: document.getElementById('comprobanteFile'),
+    comprobantePreview: document.getElementById('comprobantePreview'),
+    btnComprobanteEnviar: document.getElementById('btnComprobanteEnviar'),
+    btnComprobanteLuego: document.getElementById('btnComprobanteLuego'),
     btnBackPersona: document.getElementById('btnBackPersona'),
     stepMenu: document.getElementById('stepMenu'),
     menuPersonaName: document.getElementById('menuPersonaName'),
@@ -266,6 +275,85 @@
     }
   }
 
+
+  // ── Comprobante de pago ──────────────────────────────────────────────
+  // Tras cada cierre de quincena, quien debe ve el aviso (banner fijo + ventana
+  // al entrar) hasta subir la foto de su comprobante; subirlo la marca pagada.
+  let deudas = [];
+  let comprobanteFile = null;
+
+  const MESES_C = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  function labelQ(d) {
+    return `${Number(d.inicio.slice(8))} al ${Number(d.fin.slice(8))} ${MESES_C[Number(d.inicio.slice(5, 7)) - 1]}`;
+  }
+
+  async function loadDeudas({ abrir } = {}) {
+    try {
+      const res = await fetch(`/api/personas/${selectedPersona.id}/deudas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persona_id: selectedPersona.id, pin: currentPin }),
+      });
+      deudas = res.ok ? await res.json() : [];
+    } catch (e) {
+      deudas = [];
+    }
+    const d = deudas[0];
+    el.deudaBanner.hidden = !d;
+    if (!d) return;
+    const total = deudas.reduce((s, x) => s + Number(x.total), 0);
+    el.deudaTexto.textContent =
+      deudas.length === 1
+        ? `Quincena ${labelQ(d)} cerrada: debes ${formatMoney(total)}. Sube tu comprobante de pago.`
+        : `Tienes ${deudas.length} quincenas por pagar (${formatMoney(total)}). Sube tu comprobante de pago.`;
+    if (abrir) abrirComprobante();
+  }
+
+  function abrirComprobante() {
+    const d = deudas[0];
+    if (!d) return;
+    comprobanteFile = null;
+    el.comprobanteFile.value = '';
+    el.comprobantePreview.hidden = true;
+    el.btnComprobanteEnviar.disabled = true;
+    el.comprobanteDetalle.textContent = `Quincena ${labelQ(d)}: ${formatMoney(d.total)}`;
+    el.comprobanteOverlay.hidden = false;
+  }
+
+  el.btnSubirComprobante.addEventListener('click', abrirComprobante);
+  el.btnComprobanteLuego.addEventListener('click', () => {
+    el.comprobanteOverlay.hidden = true;
+  });
+  el.comprobanteFile.addEventListener('change', () => {
+    comprobanteFile = el.comprobanteFile.files[0] || null;
+    el.btnComprobanteEnviar.disabled = !comprobanteFile;
+    if (comprobanteFile) {
+      el.comprobantePreview.src = URL.createObjectURL(comprobanteFile);
+      el.comprobantePreview.hidden = false;
+    }
+  });
+  el.btnComprobanteEnviar.addEventListener('click', async () => {
+    if (!comprobanteFile || !deudas[0]) return;
+    el.btnComprobanteEnviar.disabled = true;
+    const fd = new FormData();
+    fd.append('pin', currentPin);
+    fd.append('persona_id', selectedPersona.id);
+    fd.append('cierre_id', deudas[0].cierre_id);
+    fd.append('file', comprobanteFile);
+    try {
+      const res = await fetch(`/api/personas/${selectedPersona.id}/comprobante`, { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo subir');
+      window.VW_UI.toast('Comprobante recibido. Quincena pagada, ¡gracias!', 'success');
+      el.comprobanteOverlay.hidden = true;
+      await loadDeudas({ abrir: false });
+      if (deudas.length) abrirComprobante();
+    } catch (err) {
+      window.VW_UI.toast(err.message, 'error');
+      el.btnComprobanteEnviar.disabled = false;
+    }
+  });
+
   el.pinForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const pin = el.pinInput.value.trim();
@@ -293,6 +381,7 @@
       await refreshProductos();
       showStep('menu');
       document.querySelector('.tab-btn[data-tab="tabAgregar"]').click();
+      loadDeudas({ abrir: true });
     } catch (err) {
       window.VW_UI.toast('No se pudo conectar. Intenta de nuevo.', 'error');
     }
@@ -305,6 +394,8 @@
   });
 
   el.btnSalir.addEventListener('click', () => {
+    el.deudaBanner.hidden = true;
+    el.comprobanteOverlay.hidden = true;
     selectedPersona = null;
     currentPin = null;
     showStep('persona');

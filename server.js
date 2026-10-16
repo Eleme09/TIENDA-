@@ -344,9 +344,9 @@ const upload = multer({
 
 // Sube una foto de producto a Supabase Storage (bucket "uploads", mismo
 // patrón que VENTA-WEB) y devuelve la URL pública.
-async function sbUploadImage(buffer, mimetype, originalName) {
+async function sbUploadImage(buffer, mimetype, originalName, prefix = '') {
   const ext = (path.extname(originalName || '') || '.jpg').toLowerCase();
-  const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+  const filename = `${prefix}${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
   const { error } = await supabase.storage.from('uploads').upload(filename, buffer, {
     contentType: mimetype,
     upsert: false,
@@ -432,6 +432,33 @@ app.post(
       consumos.push(await sbCreateConsumo({ personaId: req.persona.id, ...item }));
     }
     res.json(consumos);
+  })
+);
+
+app.post(
+  '/api/personas/:personaId/deudas',
+  pinLimiter,
+  requirePersonaPin,
+  asyncRoute(async (req, res) => {
+    res.json(await sbDeudasPersona(req.persona.id));
+  })
+);
+
+app.post(
+  '/api/personas/:personaId/comprobante',
+  pinLimiter,
+  upload.single('file'),
+  requirePersonaPin,
+  asyncRoute(async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Falta la foto del comprobante' });
+    const cierreId = Number(req.body.cierre_id);
+    const deudas = await sbDeudasPersona(req.persona.id);
+    if (!deudas.some((d) => d.cierre_id === cierreId)) {
+      return res.status(400).json({ error: 'Esa quincena no tiene pago pendiente' });
+    }
+    const url = await sbUploadImage(req.file.buffer, req.file.mimetype, req.file.originalname, 'comprobantes/');
+    await sbRegistrarComprobante(cierreId, req.persona.id, url);
+    res.json({ ok: true });
   })
 );
 
@@ -745,8 +772,37 @@ async function sbDesprendiblesPersona(personaId) {
         cierre_id: cierre ? cierre.id : null,
         total_cierre: det ? det.total : null,
         pagado: det ? Boolean(det.pagado) : null,
+        comprobante_url: det ? det.comprobante_url || null : null,
       };
     });
+}
+
+// Pagos pendientes de una persona: quincenas cerradas con deuda sin pagar.
+async function sbDeudasPersona(personaId) {
+  const cierres = await sbListCierres();
+  const out = [];
+  for (const c of cierres) {
+    const r = c.detalle.find((x) => x.persona_id === personaId);
+    if (r && !r.pagado && Number(r.total) > 0) {
+      out.push({ cierre_id: c.id, inicio: c.periodo_inicio, fin: c.periodo_fin, total: r.total });
+    }
+  }
+  return out;
+}
+
+// Subir el comprobante deja la quincena como pagada (el dueño puede revertirlo
+// desde el admin si el comprobante no es válido).
+async function sbRegistrarComprobante(cierreId, personaId, url) {
+  const { data: cierre, error } = await supabase.from('tf_cierres').select('*').eq('id', cierreId).maybeSingle();
+  if (error) throw error;
+  if (!cierre) return null;
+  const now = new Date().toISOString();
+  const detalle = cierre.detalle.map((r) =>
+    r.persona_id === personaId ? { ...r, pagado: true, pagado_at: now, comprobante_url: url, comprobante_at: now } : r
+  );
+  const { error: e2 } = await supabase.from('tf_cierres').update({ detalle }).eq('id', cierreId);
+  if (e2) throw e2;
+  return true;
 }
 
 async function sbMarcarPagoCierre(id, personaId, pagado) {
@@ -754,7 +810,11 @@ async function sbMarcarPagoCierre(id, personaId, pagado) {
   if (error) throw error;
   if (!cierre) return null;
   const detalle = cierre.detalle.map((r) =>
-    r.persona_id === personaId ? { ...r, pagado, pagado_at: pagado ? new Date().toISOString() : null } : r
+    r.persona_id !== personaId
+      ? r
+      : pagado
+        ? { ...r, pagado: true, pagado_at: new Date().toISOString() }
+        : { ...r, pagado: false, pagado_at: null, comprobante_url: null, comprobante_at: null }
   );
   const { data: row, error: e2 } = await supabase.from('tf_cierres').update({ detalle }).eq('id', id).select().single();
   if (e2) throw e2;
