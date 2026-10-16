@@ -1298,3 +1298,51 @@ body.modal-lock {
   height: 28px;
   flex-shrink: 0;
 }
+
+.consumo-det {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.consumo-det > summary {
+  cursor: pointer;
+}
+
+.linea.consumo {
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+}
+
+.btn-quiet {
+  background: none;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.buscador {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Productos en el admin: mismo catálogo compacto, cada tarjeta es un botón. */
+.admin-prod {
+  padding: 0;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.admin-prod.inactivo {
+  opacity: 0.5;
+}
+
+.prod-stock {
+  font-size: calc(11.5px * var(--fs));
+}

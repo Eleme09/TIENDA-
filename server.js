@@ -225,30 +225,6 @@ async function sbListConsumosByPersona(personaId, limit = 200) {
   return data;
 }
 
-async function sbListConsumosRango(desde, hasta) {
-  let q = supabase
-    .from('tf_consumos')
-    .select('*, tf_personas(nombre)')
-    .order('created_at', { ascending: false });
-  if (desde) q = q.gte('created_at', desde);
-  // Un input type="date" manda solo "2024-01-15" — comparado con lte tal
-  // cual, Postgres lo castea a medianoche de ese día y excluye todo lo
-  // registrado durante el día seleccionado. Se empuja al final del día.
-  if (hasta) {
-    const hastaFinDeDia = /^\d{4}-\d{2}-\d{2}$/.test(hasta) ? `${hasta}T23:59:59.999` : hasta;
-    q = q.lte('created_at', hastaFinDeDia);
-  }
-  const { data, error } = await q;
-  if (error) throw error;
-  return data.map((c) => ({
-    persona_id: c.persona_id,
-    persona_nombre: c.tf_personas ? c.tf_personas.nombre : '(desconocido)',
-    cantidad: c.cantidad,
-    precio_unitario: c.precio_unitario,
-    anulado: c.anulado,
-  }));
-}
-
 async function sbFindAdminByUsername(username) {
   const { data, error } = await supabase.from('tf_admins').select('*').eq('username', username).maybeSingle();
   if (error) throw error;
@@ -650,15 +626,6 @@ app.delete(
   asyncRoute(async (req, res) => {
     await sbDeleteProducto(Number(req.params.id));
     res.json({ ok: true });
-  })
-);
-
-app.get(
-  '/api/admin/reporte',
-  requireAdmin,
-  asyncRoute(async (req, res) => {
-    const consumos = await sbListConsumosRango(req.query.desde, req.query.hasta);
-    res.json(lib.buildReporteQuincena(consumos));
   })
 );
 

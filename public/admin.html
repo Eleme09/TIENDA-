@@ -68,32 +68,15 @@
             <div class="field"><label for="desprPersona">Elegir persona</label><select id="desprPersona"><option value="">Elegí una persona…</option></select></div>
             <div id="personaResumen" class="persona-estado"></div>
             <div id="desprLista"></div>
+            <details class="consumo-det" id="consumoDet">
+              <summary>Consumo (ver y anular)</summary>
+              <div id="consumoLista"></div>
+            </details>
             <details class="gestion">
               <summary>Datos y gestión de la persona</summary>
               <div id="personaAcciones" class="persona-botones"></div>
             </details>
           </div>
-
-          <details class="card-box" id="reporteBox">
-            <summary><strong>Reporte por fechas</strong></summary>
-            <div class="quick-range" style="margin-top:10px">
-              <button type="button" class="btn btn-sm" data-rango="actual">Quincena actual</button>
-              <button type="button" class="btn btn-sm" data-rango="anterior">Quincena anterior</button>
-              <button type="button" class="btn btn-sm" data-rango="mes">Este mes</button>
-            </div>
-            <div class="row-inline" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-              <div class="field" style="margin-bottom:0"><label>Desde</label><input type="date" id="reporteDesde" /></div>
-              <div class="field" style="margin-bottom:0"><label>Hasta</label><input type="date" id="reporteHasta" /></div>
-              <div style="align-self:flex-end"><button type="button" class="btn btn-accent" id="btnReporte">Generar</button></div>
-              <div style="align-self:flex-end"><button type="button" class="btn" id="btnExportarCsv">Exportar CSV</button></div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Persona</th><th>Items</th><th>Total a cobrar</th><th>Anulados</th><th></th></tr></thead>
-                <tbody id="reporteBody"></tbody>
-              </table>
-            </div>
-          </details>
 
           <details class="card-box add-box" id="agregarPersonaBox">
             <summary class="btn">+ Agregar persona</summary>
@@ -107,8 +90,15 @@
 
         <div id="tabProductos" class="panel">
           <div class="card-box">
-            <h2>Agregar producto</h2>
-            <form id="productoForm" style="display:flex;gap:8px;flex-wrap:wrap">
+            <h2>Productos</h2>
+            <input id="productosBuscar" type="search" placeholder="Buscar producto…" aria-label="Buscar producto" class="buscador" />
+            <div id="productosGrid" class="producto-grid admin-grid"></div>
+            <p id="productosVacio" class="muted" hidden>No hay productos que coincidan.</p>
+          </div>
+
+          <details class="card-box add-box" id="agregarProductoBox">
+            <summary class="btn">+ Agregar producto</summary>
+            <form id="productoForm" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
               <div class="field" style="margin-bottom:0;flex:1;min-width:160px"><label>Nombre</label><input id="productoNombre" required /></div>
               <div class="field" style="margin-bottom:0;width:110px"><label>Precio</label><input id="productoPrecio" type="number" min="0" required /></div>
               <div class="field" style="margin-bottom:0;width:90px"><label>Stock</label><input id="productoStock" type="number" min="0" value="0" /></div>
@@ -122,13 +112,8 @@
               </div>
               <div style="align-self:flex-end"><button type="submit" class="btn btn-accent">Agregar</button></div>
             </form>
-          </div>
-          <div class="card-box">
-            <h2>Productos</h2>
-            <div class="table-wrap">
-              <table><thead><tr><th></th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Estado</th><th></th></tr></thead><tbody id="productosBody"></tbody></table>
-            </div>
-          </div>
+          </details>
+
           <details class="card-box" id="facturaBox">
             <summary><strong>Cargar stock por foto de factura</strong></summary>
             <div class="upload-row">

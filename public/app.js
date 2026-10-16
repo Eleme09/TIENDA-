@@ -73,8 +73,16 @@
     });
   }
 
+  const normalizar = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const buscador = document.getElementById('productoBuscar');
+  const vacio = document.getElementById('productoVacio');
+  buscador.addEventListener('input', () => renderProductos());
+
   function renderProductos() {
-    el.productoList.innerHTML = productos
+    const q = normalizar(buscador.value.trim());
+    const visibles = productos.filter((p) => !q || normalizar(p.nombre).includes(q));
+    vacio.hidden = visibles.length > 0;
+    el.productoList.innerHTML = visibles
       .map((p) => {
         const qty = qtyByProducto[p.id] || 0;
         const outOfStock = Number(p.stock) <= 0;

@@ -13,10 +13,6 @@
     authError: document.getElementById('authError'),
     panelSection: document.getElementById('panelSection'),
     btnLogout: document.getElementById('btnLogout'),
-    reporteDesde: document.getElementById('reporteDesde'),
-    reporteHasta: document.getElementById('reporteHasta'),
-    btnReporte: document.getElementById('btnReporte'),
-    reporteBody: document.getElementById('reporteBody'),
     btnCerrarQuincena: document.getElementById('btnCerrarQuincena'),
     cierrePendiente: document.getElementById('cierrePendiente'),
     cierresLista: document.getElementById('cierresLista'),
@@ -33,14 +29,15 @@
     productoFotoPreview: document.getElementById('productoFotoPreview'),
     productoPrecio: document.getElementById('productoPrecio'),
     productoStock: document.getElementById('productoStock'),
-    productosBody: document.getElementById('productosBody'),
+    productosGrid: document.getElementById('productosGrid'),
+    productosBuscar: document.getElementById('productosBuscar'),
+    productosVacio: document.getElementById('productosVacio'),
     facturaFile: document.getElementById('facturaFile'),
     btnOcr: document.getElementById('btnOcr'),
     ocrStatus: document.getElementById('ocrStatus'),
     facturaItemsWrap: document.getElementById('facturaItemsWrap'),
     facturaItemsBody: document.getElementById('facturaItemsBody'),
     btnAplicarFactura: document.getElementById('btnAplicarFactura'),
-    btnExportarCsv: document.getElementById('btnExportarCsv'),
     negocioForm: document.getElementById('negocioForm'),
     negocioNombre: document.getElementById('negocioNombre'),
     negocioMoneda: document.getElementById('negocioMoneda'),
@@ -48,7 +45,6 @@
 
   let isSetupMode = false;
   let productosCache = [];
-  let reporteCache = [];
 
   function escapeHtml(str) {
     return String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -73,7 +69,6 @@
     el.authSection.hidden = true;
     el.panelSection.hidden = false;
     el.btnLogout.hidden = false;
-    loadReporte();
     loadCierres();
     loadPersonas();
     loadProductos();
@@ -126,65 +121,7 @@
     });
   });
 
-  // ── Reporte ──────────────────────────────────────────────────────────
-
-  async function loadReporte() {
-    const params = new URLSearchParams();
-    if (el.reporteDesde.value) params.set('desde', el.reporteDesde.value);
-    if (el.reporteHasta.value) params.set('hasta', el.reporteHasta.value);
-    const data = await apiFetch(`/api/admin/reporte?${params}`);
-    reporteCache = data;
-    el.reporteBody.innerHTML = data
-      .map(
-        (r) =>
-          `<tr><td>${escapeHtml(r.persona_nombre)}</td><td>${r.items}</td><td><strong>${formatMoney(r.total)}</strong></td><td>${r.anulados > 0 ? `<span class="pill pill-warn">${r.anulados}</span>` : '—'}</td><td><button type="button" class="btn btn-sm" data-detalle="${r.persona_id}" data-nombre="${escapeHtml(r.persona_nombre)}">Ver detalle</button></td></tr>`
-      )
-      .join('') || '<tr><td colspan="5" class="muted">Sin consumos en el rango.</td></tr>';
-
-    el.reporteBody.querySelectorAll('[data-detalle]').forEach((btn) => {
-      btn.addEventListener('click', () => mostrarDetallePersona(Number(btn.dataset.detalle), btn.dataset.nombre));
-    });
-  }
-
-  el.btnReporte.addEventListener('click', loadReporte);
-
-  // Atajos: rellenan Desde/Hasta (hora Colombia) y generan el reporte.
-  document.querySelectorAll('[data-rango]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const hoy = new Date(Date.now() - 5 * 3600 * 1000);
-      const y = hoy.getUTCFullYear();
-      const mo = hoy.getUTCMonth();
-      const pad = (n) => String(n).padStart(2, '0');
-      const ult = (yy, mm) => new Date(Date.UTC(yy, mm + 1, 0)).getUTCDate();
-      let d;
-      let h;
-      const tipo = btn.dataset.rango;
-      if (tipo === 'mes') {
-        d = `${y}-${pad(mo + 1)}-01`;
-        h = `${y}-${pad(mo + 1)}-${pad(ult(y, mo))}`;
-      } else {
-        const primera = hoy.getUTCDate() <= 15;
-        let yy = y;
-        let mm = mo;
-        let ini = primera;
-        if (tipo === 'anterior') {
-          if (primera) {
-            mm = mo - 1;
-            if (mm < 0) {
-              mm = 11;
-              yy = y - 1;
-            }
-          }
-          ini = !primera;
-        }
-        d = `${yy}-${pad(mm + 1)}-${ini ? '01' : '16'}`;
-        h = `${yy}-${pad(mm + 1)}-${ini ? '15' : pad(ult(yy, mm))}`;
-      }
-      el.reporteDesde.value = d;
-      el.reporteHasta.value = h;
-      loadReporte().catch((err) => window.VW_UI.toast(err.message, 'error'));
-    });
-  });
+  // ── Utilidades ───────────────────────────────────────────────────────
 
   function downloadCsv(filename, rows) {
     const csv = rows
@@ -200,18 +137,6 @@
     a.remove();
     URL.revokeObjectURL(url);
   }
-
-  el.btnExportarCsv.addEventListener('click', () => {
-    if (reporteCache.length === 0) {
-      window.VW_UI.toast('No hay datos para exportar — generá el reporte primero.', 'error');
-      return;
-    }
-    const rows = [
-      ['Persona', 'Items', 'Total a cobrar', 'Anulados'],
-      ...reporteCache.map((r) => [r.persona_nombre, r.items, r.total, r.anulados]),
-    ];
-    downloadCsv(`reporte_quincena_${new Date().toISOString().slice(0, 10)}.csv`, rows);
-  });
 
   // ── Cierres de quincena ─────────────────────────────────────────────
 
@@ -262,6 +187,7 @@
     el.desprPersona.value = existe ? prev : debe.length ? String(debe[0].id) : aldia.length ? String(aldia[0].id) : '';
     loadDesprendibles();
     renderPersonas();
+    loadConsumoPersona();
   }
 
   async function loadCierres() {
@@ -386,7 +312,9 @@
   el.desprPersona.addEventListener('change', () => {
     loadDesprendibles();
     renderPersonas();
+    loadConsumoPersona();
   });
+  document.getElementById('consumoDet').addEventListener('toggle', loadConsumoPersona);
 
   el.btnCerrarQuincena.addEventListener('click', async () => {
     const { inicio, fin } = el.btnCerrarQuincena.dataset;
@@ -439,7 +367,7 @@
     });
   }
 
-  async function anularConsumoAdmin(consumoId, personaId, nombre) {
+  async function anularConsumoAdmin(consumoId) {
     const tipo = await elegirMotivoAnulacionAdmin();
     if (!tipo) return;
     try {
@@ -449,66 +377,36 @@
         body: JSON.stringify({ tipo }),
       });
       window.VW_UI.toast('Consumo anulado.', 'ok');
-      await mostrarDetallePersona(personaId, nombre);
-      await loadReporte();
+      await loadConsumoPersona();
+      await loadDesprendibles();
       await loadProductos();
     } catch (err) {
       window.VW_UI.toast(err.message, 'error');
     }
   }
 
-  async function mostrarDetallePersona(personaId, nombre) {
-    const consumos = await apiFetch(`/api/admin/personas/${personaId}/consumos`);
-    let totalVigente = 0;
-    let itemsVigentes = 0;
-    const rows = consumos
-      .map((c) => {
-        const fecha = new Date(c.created_at).toLocaleDateString('es-CO');
-        const lineTotal = Number(c.precio_unitario) * Number(c.cantidad);
-        const total = formatMoney(lineTotal);
-        const producto = c.tf_productos ? c.tf_productos.nombre : '';
-        const estado = c.anulado ? '<span class="pill pill-warn">Anulado</span>' : '<span class="pill pill-ok">Vigente</span>';
-        const motivo = c.anulado ? escapeHtml(c.motivo_anulacion || '—') : '';
-        const anularBtn = c.anulado ? '' : `<button type="button" class="btn btn-sm" data-anular-admin="${c.id}">Anular</button>`;
-        if (!c.anulado) {
-          totalVigente += lineTotal;
-          itemsVigentes += Number(c.cantidad);
-        }
-        return `<tr><td>${fecha}</td><td>${escapeHtml(producto)}</td><td>${c.cantidad}</td><td>${total}</td><td>${estado}</td><td>${motivo}</td><td>${anularBtn}</td></tr>`;
-      })
-      .join('');
-
-    const overlay = document.createElement('div');
-    overlay.className = 'vw-modal-overlay';
-    overlay.innerHTML = `
-      <div class="vw-modal-box" style="max-width:700px">
-        <h2 style="margin:0 0 4px">Detalle de ${escapeHtml(nombre)}</h2>
-        <p class="muted" style="margin:0 0 12px">Total vigente: <strong>${formatMoney(totalVigente)}</strong> (${itemsVigentes} ítems)</p>
-        <div class="table-wrap" style="max-height:60vh;overflow-y:auto">
-          <table>
-            <thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Total</th><th>Estado</th><th>Motivo</th><th></th></tr></thead>
-            <tbody>${rows || '<tr><td colspan="7" class="muted">Sin consumos.</td></tr>'}</tbody>
-          </table>
-        </div>
-        <div class="vw-modal-actions" style="margin-top:12px">
-          <button type="button" class="btn btn-accent" id="btnCerrarDetalle">Cerrar</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    function close() {
-      overlay.remove();
-    }
-    overlay.querySelectorAll('[data-anular-admin]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        overlay.remove();
-        anularConsumoAdmin(Number(btn.dataset.anularAdmin), personaId, nombre);
+  // Consumo de la persona elegida: lista desplegable, solo se carga al abrirla.
+  async function loadConsumoPersona() {
+    const box = document.getElementById('consumoLista');
+    const id = el.desprPersona.value;
+    if (!id || !document.getElementById('consumoDet').open) return;
+    try {
+      const consumos = await apiFetch(`/api/admin/personas/${id}/consumos`);
+      box.innerHTML =
+        consumos
+          .map((c) => {
+            const fecha = new Date(c.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+            const total = formatMoney(Number(c.precio_unitario) * Number(c.cantidad));
+            const prod = c.tf_productos ? c.tf_productos.nombre : '';
+            return `<div class="linea consumo${c.anulado ? ' anulada' : ''}"><span class="linea-fecha">${fecha}</span><span class="linea-prod">${escapeHtml(prod)} ×${c.cantidad}${c.anulado ? `<br /><span class="muted">Anulado: ${escapeHtml(c.motivo_anulacion || '—')}</span>` : ''}</span><span class="linea-monto">${total}</span>${c.anulado ? '' : `<button type="button" class="btn btn-sm btn-quiet" data-anular-admin="${c.id}">Anular</button>`}</div>`;
+          })
+          .join('') || '<p class="muted">Sin consumos.</p>';
+      box.querySelectorAll('[data-anular-admin]').forEach((btn) => {
+        btn.addEventListener('click', () => anularConsumoAdmin(Number(btn.dataset.anularAdmin)));
       });
-    });
-    overlay.querySelector('#btnCerrarDetalle').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) close();
-    });
+    } catch (err) {
+      window.VW_UI.toast(err.message, 'error');
+    }
   }
 
   // ── Personas ─────────────────────────────────────────────────────────
@@ -535,10 +433,8 @@
       ? `<span class="muted">Total que debe</span><strong class="debe grande">${formatMoney(deuda.get(p.id))}</strong>`
       : '<span class="muted">Al día, no debe nada</span>';
     box.innerHTML = `<div class="muted" style="width:100%">${escapeHtml(p.nombre)} · ${p.activo ? 'Activa' : 'Inactiva'}</div>
-        <button type="button" class="btn btn-sm" id="pConsumo">Ver consumo</button>
         <button type="button" class="btn btn-sm" id="pEditar">Editar</button>
         <button type="button" class="btn btn-sm btn-quiet-danger" id="pVaciar">Vaciar lista</button>`;
-    document.getElementById('pConsumo').addEventListener('click', () => mostrarDetallePersona(p.id, p.nombre));
     document.getElementById('pEditar').addEventListener('click', () => abrirEditarPersona(p));
     document.getElementById('pVaciar').addEventListener('click', async () => {
       const ok = await window.VW_UI.confirmDialog(
@@ -624,60 +520,62 @@
 
   // ── Productos ────────────────────────────────────────────────────────
 
+  const normalizar = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
   async function loadProductos() {
     productosCache = await apiFetch('/api/admin/productos');
-    el.productosBody.innerHTML = productosCache
+    renderProductosAdmin();
+  }
+
+  // Catálogo compacto: tocar un producto abre su edición (activar, eliminar y demás van ahí).
+  function renderProductosAdmin() {
+    const q = normalizar(el.productosBuscar.value.trim());
+    const lista = productosCache.filter((p) => !q || normalizar(p.nombre).includes(q));
+    el.productosVacio.hidden = lista.length > 0;
+    el.productosGrid.innerHTML = lista
       .map((p) => {
-        const foto = p.foto_url ? `<img src="${escapeHtml(p.foto_url)}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:6px" />` : '';
-        return `
-          <tr>
-            <td>${foto}</td>
-            <td>${escapeHtml(p.nombre)}</td>
-            <td>${formatMoney(p.precio)}</td>
-            <td>${p.stock}</td>
-            <td>${p.activo ? '<span class="pill pill-ok">Activo</span>' : '<span class="pill pill-warn">Inactivo</span>'}</td>
-            <td>
-              <button type="button" class="btn btn-sm" data-editar-producto="${p.id}">Editar</button>
-              <button type="button" class="btn btn-sm" data-toggle="${p.id}">${p.activo ? 'Desactivar' : 'Activar'}</button>
-              <button type="button" class="btn btn-sm btn-danger" data-eliminar-producto="${p.id}">Eliminar</button>
-            </td>
-          </tr>`;
+        const foto = p.foto_url ? `<img class="producto-foto" src="${escapeHtml(p.foto_url)}" alt="" loading="lazy" />` : '<div class="producto-foto-empty"></div>';
+        return `<button type="button" class="producto-card admin-prod${p.activo ? '' : ' inactivo'}" data-editar-producto="${p.id}">
+          ${foto}
+          <div class="producto-body">
+            <div class="producto-nombre">${escapeHtml(p.nombre)}</div>
+            <div class="producto-precio">${formatMoney(p.precio)}</div>
+            <div class="${Number(p.stock) <= 0 ? 'debe' : 'muted'} prod-stock">${p.activo ? `Stock ${p.stock}` : 'Inactivo'}</div>
+          </div>
+        </button>`;
       })
       .join('');
-    el.productosBody.querySelectorAll('[data-toggle]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const p = productosCache.find((x) => x.id === Number(btn.dataset.toggle));
-        await apiFetch(`/api/admin/productos/${p.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ activo: !p.activo }),
-        });
-        await loadProductos();
-      });
-    });
-    el.productosBody.querySelectorAll('[data-editar-producto]').forEach((btn) => {
+    el.productosGrid.querySelectorAll('[data-editar-producto]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const p = productosCache.find((x) => x.id === Number(btn.dataset.editarProducto));
         if (p) abrirEditarProducto(p);
       });
     });
-    el.productosBody.querySelectorAll('[data-eliminar-producto]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const p = productosCache.find((x) => x.id === Number(btn.dataset.eliminarProducto));
-        if (!p) return;
-        const ok = await window.VW_UI.confirmDialog(`¿Eliminar "${p.nombre}" para siempre? No se puede deshacer.`, {
-          confirmLabel: 'Eliminar',
-        });
-        if (!ok) return;
-        try {
-          await apiFetch(`/api/admin/productos/${p.id}`, { method: 'DELETE' });
-          await loadProductos();
-          window.VW_UI.toast('Producto eliminado.', 'ok');
-        } catch (err) {
-          window.VW_UI.toast(err.message, 'error');
-        }
-      });
+  }
+
+  el.productosBuscar.addEventListener('input', renderProductosAdmin);
+
+  async function alternarProducto(p) {
+    await apiFetch(`/api/admin/productos/${p.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ activo: !p.activo }),
     });
+    await loadProductos();
+  }
+
+  async function eliminarProducto(p) {
+    const ok = await window.VW_UI.confirmDialog(`¿Eliminar "${p.nombre}" para siempre? No se puede deshacer.`, { confirmLabel: 'Eliminar' });
+    if (!ok) return false;
+    try {
+      await apiFetch(`/api/admin/productos/${p.id}`, { method: 'DELETE' });
+      await loadProductos();
+      window.VW_UI.toast('Producto eliminado.', 'ok');
+      return true;
+    } catch (err) {
+      window.VW_UI.toast(err.message, 'error');
+      return false;
+    }
   }
 
   function abrirEditarProducto(producto) {
@@ -706,6 +604,10 @@
             <input id="editProductoFotoFile" type="file" accept="image/*" />
           </div>
         </div>
+        <div class="persona-botones" style="margin-bottom:12px">
+          <button type="button" class="btn btn-sm" id="btnToggleProducto">${producto.activo ? 'Desactivar' : 'Activar'}</button>
+          <button type="button" class="btn btn-sm btn-quiet-danger" id="btnEliminarProducto">Eliminar</button>
+        </div>
         <div class="vw-modal-actions">
           <button type="button" class="btn" id="btnCancelarEditProducto">Cancelar</button>
           <button type="button" class="btn btn-accent" id="btnGuardarProducto">Guardar</button>
@@ -717,6 +619,17 @@
       overlay.remove();
     }
     overlay.querySelector('#btnCancelarEditProducto').addEventListener('click', close);
+    overlay.querySelector('#btnToggleProducto').addEventListener('click', async () => {
+      try {
+        await alternarProducto(producto);
+        close();
+      } catch (err) {
+        window.VW_UI.toast(err.message, 'error');
+      }
+    });
+    overlay.querySelector('#btnEliminarProducto').addEventListener('click', async () => {
+      if (await eliminarProducto(producto)) close();
+    });
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) close();
     });
