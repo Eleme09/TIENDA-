@@ -74,4 +74,26 @@
   }
 
   window.VW_UI = { toast, confirmDialog, skeletonGrid };
+
+  // En celular las tablas se apilan como tarjetas; cada celda lleva su
+  // encabezado como etiqueta (data-label) para saber qué es cada dato.
+  function labelTable(table) {
+    const heads = Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent.trim());
+    if (!heads.length) return;
+    table.querySelectorAll('tbody tr').forEach((tr) => {
+      Array.from(tr.children).forEach((td, i) => {
+        if (heads[i] && !td.dataset.label) td.dataset.label = heads[i];
+      });
+    });
+  }
+
+  function labelAll() {
+    document.querySelectorAll('.table-wrap table').forEach(labelTable);
+  }
+
+  let labelTimer = null;
+  new MutationObserver(() => {
+    clearTimeout(labelTimer);
+    labelTimer = setTimeout(labelAll, 30);
+  }).observe(document.documentElement, { childList: true, subtree: true });
 })();

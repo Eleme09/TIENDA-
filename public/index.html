@@ -86,7 +86,8 @@
     </main>
 
     <div id="comprobanteOverlay" class="vw-modal-overlay" hidden>
-      <div class="vw-modal-box">
+      <div class="vw-modal-box comp-box">
+        <div id="comprobanteForm">
         <h2 style="margin-top:0">Sube tu comprobante de pago</h2>
         <p id="comprobanteDetalle"></p>
         <div class="nequi-box">
@@ -98,12 +99,18 @@
           <button type="button" class="btn btn-sm" id="btnCopiarNequi">Copiar</button>
         </div>
         <p class="muted">Envía el pago a esa cuenta Nequi y sube la foto del comprobante. Al subirla, tu quincena queda como pagada.</p>
-        <label class="btn btn-block" for="comprobanteFile">Tomar o elegir foto</label>
+        <label class="btn btn-block btn-foto" for="comprobanteFile">Tomar o elegir foto</label>
         <input id="comprobanteFile" type="file" accept="image/jpeg,image/png,image/webp" hidden />
         <img id="comprobantePreview" class="comprobante-preview" alt="Vista previa del comprobante" hidden />
-        <div class="vw-modal-actions" style="margin-top:12px">
-          <button type="button" class="btn" id="btnComprobanteLuego">Después</button>
+        <div class="vw-modal-actions comp-actions">
           <button type="button" class="btn btn-accent" id="btnComprobanteEnviar" disabled>Enviar comprobante</button>
+          <button type="button" class="btn" id="btnComprobanteLuego">Después</button>
+        </div>
+        </div>
+        <div class="comp-ok" id="comprobanteOk" hidden>
+          <svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="23" /><path d="M15 27l8 8 14-16" /></svg>
+          <strong>¡Comprobante recibido!</strong>
+          <span class="muted">Tu quincena quedó como pagada.</span>
         </div>
       </div>
     </div>

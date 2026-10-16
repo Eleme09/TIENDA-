@@ -59,6 +59,11 @@
         <div id="tabReporte" class="panel active">
           <div class="card-box">
             <h2>Reporte de consumo</h2>
+            <div class="quick-range">
+              <button type="button" class="btn btn-sm" data-rango="actual">Quincena actual</button>
+              <button type="button" class="btn btn-sm" data-rango="anterior">Quincena anterior</button>
+              <button type="button" class="btn btn-sm" data-rango="mes">Este mes</button>
+            </div>
             <div class="row-inline" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
               <div class="field" style="margin-bottom:0"><label>Desde</label><input type="date" id="reporteDesde" /></div>
               <div class="field" style="margin-bottom:0"><label>Hasta</label><input type="date" id="reporteHasta" /></div>

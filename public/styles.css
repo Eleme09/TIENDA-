@@ -661,13 +661,22 @@ th {
 
   /* Varios botones juntos en una fila (Editar/Vaciar/Ver consumo, etc.)
      se apilan a todo el ancho, cada uno fácil de tocar. */
-  td .btn + .btn {
-    margin-top: 6px;
+  td:has(.btn) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   td .btn {
-    display: flex;
-    width: 100%;
+    flex: 1 1 28%;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .table-wrap td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--muted);
+    font-size: calc(11.5px * var(--fs));
   }
 
   /* Formularios en fila (agregar persona/producto, filtros de reporte)
@@ -818,4 +827,151 @@ td a, summary a {
 .nequi-num {
   font-weight: 700;
   font-size: calc(17px * var(--fs));
+}
+
+/* Pestañas del admin: todas visibles (rejilla), sin tener que deslizar. */
+@media (max-width: 640px) {
+  #panelSection .tabnav {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    overflow: visible;
+    border-bottom: none;
+  }
+
+  #panelSection .tabnav button {
+    padding: 10px 4px;
+    white-space: normal;
+    line-height: 1.2;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+  }
+
+  #panelSection .tabnav button.active {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+}
+
+.quick-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+/* Aviso de comprobante: entrada suave y estado de éxito. */
+.comp-box {
+  max-width: 400px;
+}
+
+.vw-modal-overlay:not([hidden]) {
+  animation: compFade 0.25s ease both;
+}
+
+#comprobanteOverlay {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+#comprobanteOverlay:not([hidden]) .comp-box {
+  animation: compRise 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+
+@keyframes compFade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes compRise {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.96);
+  }
+}
+
+.comp-actions {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comp-actions .btn {
+  width: 100%;
+}
+
+.btn-foto {
+  border-style: dashed;
+}
+
+.nequi-num {
+  white-space: nowrap;
+}
+
+.comprobante-preview:not([hidden]) {
+  animation: compFade 0.3s ease both;
+}
+
+#btnComprobanteEnviar:not(:disabled) {
+  animation: compReady 1.8s ease-in-out infinite;
+}
+
+@keyframes compReady {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+}
+
+.comp-ok {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 0;
+  text-align: center;
+}
+
+.comp-ok svg {
+  width: 72px;
+  height: 72px;
+  fill: none;
+  stroke: var(--success);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.comp-ok circle {
+  stroke-dasharray: 145;
+  stroke-dashoffset: 145;
+  animation: compDraw 0.6s ease-out forwards;
+}
+
+.comp-ok path {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: compDraw 0.4s 0.45s ease-out forwards;
+}
+
+@keyframes compDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Banner: respiración suave en vez de parpadeo. */
+.deuda-banner {
+  animation: deudaPulse 3.2s ease-in-out infinite, compRise 0.5s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vw-modal-overlay:not([hidden]),
+  #comprobanteOverlay:not([hidden]) .comp-box,
+  #btnComprobanteEnviar:not(:disabled),
+  .comp-ok circle,
+  .comp-ok path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }

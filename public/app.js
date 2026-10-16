@@ -15,6 +15,8 @@
     comprobanteOverlay: document.getElementById('comprobanteOverlay'),
     comprobanteDetalle: document.getElementById('comprobanteDetalle'),
     comprobanteFile: document.getElementById('comprobanteFile'),
+    comprobanteForm: document.getElementById('comprobanteForm'),
+    comprobanteOk: document.getElementById('comprobanteOk'),
     comprobantePreview: document.getElementById('comprobantePreview'),
     btnComprobanteEnviar: document.getElementById('btnComprobanteEnviar'),
     btnComprobanteLuego: document.getElementById('btnComprobanteLuego'),
@@ -317,6 +319,8 @@
     el.comprobantePreview.hidden = true;
     el.btnComprobanteEnviar.disabled = true;
     el.comprobanteDetalle.textContent = `Quincena ${labelQ(d)}: ${formatMoney(d.total)}`;
+    el.comprobanteForm.hidden = false;
+    el.comprobanteOk.hidden = true;
     el.comprobanteOverlay.hidden = false;
   }
 
@@ -354,6 +358,9 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'No se pudo subir');
       window.VW_UI.toast('Comprobante recibido. Quincena pagada, ¡gracias!', 'success');
+      el.comprobanteForm.hidden = true;
+      el.comprobanteOk.hidden = false;
+      await new Promise((r) => setTimeout(r, 1700));
       el.comprobanteOverlay.hidden = true;
       await loadDeudas({ abrir: false });
       if (deudas.length) abrirComprobante();

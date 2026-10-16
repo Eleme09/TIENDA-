@@ -148,6 +148,44 @@
 
   el.btnReporte.addEventListener('click', loadReporte);
 
+  // Atajos: rellenan Desde/Hasta (hora Colombia) y generan el reporte.
+  document.querySelectorAll('[data-rango]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const hoy = new Date(Date.now() - 5 * 3600 * 1000);
+      const y = hoy.getUTCFullYear();
+      const mo = hoy.getUTCMonth();
+      const pad = (n) => String(n).padStart(2, '0');
+      const ult = (yy, mm) => new Date(Date.UTC(yy, mm + 1, 0)).getUTCDate();
+      let d;
+      let h;
+      const tipo = btn.dataset.rango;
+      if (tipo === 'mes') {
+        d = `${y}-${pad(mo + 1)}-01`;
+        h = `${y}-${pad(mo + 1)}-${pad(ult(y, mo))}`;
+      } else {
+        const primera = hoy.getUTCDate() <= 15;
+        let yy = y;
+        let mm = mo;
+        let ini = primera;
+        if (tipo === 'anterior') {
+          if (primera) {
+            mm = mo - 1;
+            if (mm < 0) {
+              mm = 11;
+              yy = y - 1;
+            }
+          }
+          ini = !primera;
+        }
+        d = `${yy}-${pad(mm + 1)}-${ini ? '01' : '16'}`;
+        h = `${yy}-${pad(mm + 1)}-${ini ? '15' : pad(ult(yy, mm))}`;
+      }
+      el.reporteDesde.value = d;
+      el.reporteHasta.value = h;
+      loadReporte().catch((err) => window.VW_UI.toast(err.message, 'error'));
+    });
+  });
+
   function downloadCsv(filename, rows) {
     const csv = rows
       .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
