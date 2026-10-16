@@ -15,11 +15,11 @@
   --accent-contrast: #1a0a12;
   --danger: #ff6b6b;
   --success: #6fe7b8;
-  --fs: 1.1; /* escala de letra: sube en pantallas grandes (ver @media al final) */
+  --fs: 1.05; /* escala de letra: sube en pantallas grandes (ver @media al final) */
   --radius: 20px;
   --radius-sm: 13px;
   --font: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-display: "Unbounded", "Arial Narrow", sans-serif;
+  --font-display: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "Quicksand", "Hanken Grotesk", sans-serif;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 1px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 14px 30px -18px rgba(0, 0, 0, 0.55);
@@ -87,8 +87,6 @@ textarea {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: calc(15px * var(--fs));
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .btn {
@@ -129,8 +127,6 @@ textarea {
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 7%, transparent));
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 .btn-accent:hover:not(:disabled) {
@@ -211,8 +207,6 @@ textarea {
   font-family: var(--font-display);
   font-size: calc(13px * var(--fs));
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   margin: 0 0 12px;
 }
 
@@ -376,8 +370,6 @@ textarea {
   font-size: calc(10.5px * var(--fs));
   color: var(--danger);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   background: color-mix(in srgb, var(--danger) 10%, transparent);
   padding: 2px 7px;
   border-radius: 999px;
@@ -430,7 +422,6 @@ th {
   color: var(--muted);
   font-weight: 600;
   font-size: calc(12px * var(--fs));
-  text-transform: uppercase;
 }
 
 .table-wrap {
@@ -472,8 +463,6 @@ th {
   font-family: var(--font-display);
   font-size: calc(11.5px * var(--fs));
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
   transition: color 0.15s ease, border-color 0.15s ease;
@@ -510,8 +499,6 @@ th {
 .stat-label {
   font-family: var(--font-display);
   font-size: calc(10.5px * var(--fs));
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--muted);
   font-weight: 600;
 }
@@ -778,13 +765,13 @@ td a {
    1 a 1.1 en la base; el texto de 10-13 px se leía muy chico). */
 @media (min-width: 641px) {
   :root {
-    --fs: 1.15;
+    --fs: 1.08;
   }
 }
 
 @media (min-width: 1024px) {
   :root {
-    --fs: 1.25;
+    --fs: 1.12;
   }
 
   .container {
@@ -831,5 +818,4 @@ td a, summary a {
 .nequi-num {
   font-weight: 700;
   font-size: calc(17px * var(--fs));
-  letter-spacing: 0.03em;
 }
