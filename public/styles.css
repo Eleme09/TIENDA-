@@ -975,3 +975,141 @@ td a, summary a {
     stroke-dashoffset: 0;
   }
 }
+
+/* Ventanas emergentes: nunca más altas que la pantalla, con scroll propio y
+   sin arrastrar la página de atrás. */
+body.modal-lock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.vw-modal-overlay {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+
+.vw-modal-box {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.comp-box {
+  position: relative;
+}
+
+.comp-x {
+  position: sticky;
+  top: 0;
+  float: right;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  margin: -6px -6px 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* El botón de enviar siempre a la vista, aunque la ventana haga scroll. */
+.comp-actions {
+  position: sticky;
+  bottom: -20px;
+  margin: 12px -20px -20px;
+  padding: 12px 20px 20px;
+  background: linear-gradient(180deg, transparent, var(--surface) 22%);
+}
+
+/* Admin: cierres y desprendible compactos. */
+.cierre-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.cierre-head {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip-deuda {
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.desp-q {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.desp-q > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.desp-q > .pago-fila,
+.desp-q > .lineas,
+.desp-q > .btn {
+  margin: 0 12px 12px;
+}
+
+.pago-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lineas {
+  border-top: 1px solid var(--border);
+}
+
+.linea {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.linea-fecha {
+  color: var(--muted);
+}
+
+.linea-monto {
+  font-weight: 600;
+}
+
+.linea.anulada {
+  opacity: 0.5;
+  text-decoration: line-through;
+}

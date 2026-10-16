@@ -354,8 +354,13 @@
   }
 
   el.btnSubirComprobante.addEventListener('click', abrirComprobante);
-  el.btnComprobanteLuego.addEventListener('click', () => {
+  const cerrarComprobante = () => {
     el.comprobanteOverlay.hidden = true;
+  };
+  el.btnComprobanteLuego.addEventListener('click', cerrarComprobante);
+  document.getElementById('btnComprobanteX').addEventListener('click', cerrarComprobante);
+  el.comprobanteOverlay.addEventListener('click', (e) => {
+    if (e.target === el.comprobanteOverlay) cerrarComprobante();
   });
   el.comprobanteFile.addEventListener('change', () => {
     comprobanteFile = el.comprobanteFile.files[0] || null;

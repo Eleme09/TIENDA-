@@ -96,4 +96,29 @@
     clearTimeout(labelTimer);
     labelTimer = setTimeout(labelAll, 30);
   }).observe(document.documentElement, { childList: true, subtree: true });
+
+  // Con una ventana emergente abierta, la página de atrás no se desplaza:
+  // se congela el body (iOS Safari ignora overflow:hidden a secas).
+  let lockY = 0;
+  let locked = false;
+  function syncScrollLock() {
+    const open = !!document.querySelector('.vw-modal-overlay:not([hidden])');
+    if (open && !locked) {
+      locked = true;
+      lockY = window.scrollY;
+      document.body.style.top = `-${lockY}px`;
+      document.body.classList.add('modal-lock');
+    } else if (!open && locked) {
+      locked = false;
+      document.body.classList.remove('modal-lock');
+      document.body.style.top = '';
+      window.scrollTo(0, lockY);
+    }
+  }
+  new MutationObserver(syncScrollLock).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['hidden'],
+  });
 })();

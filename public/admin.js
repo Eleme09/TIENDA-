@@ -237,6 +237,32 @@
 
   let cierresCache = [];
 
+  // Deuda pendiente por persona (suma de quincenas cerradas sin pagar).
+  function deudaPorPersona() {
+    const m = new Map();
+    for (const c of cierresCache) {
+      for (const r of c.detalle) {
+        if (!r.pagado && Number(r.total) > 0) m.set(r.persona_id, (m.get(r.persona_id) || 0) + Number(r.total));
+      }
+    }
+    return m;
+  }
+
+  // Selector: primero quienes deben (con su monto), luego los que están al día.
+  function refreshDesprSelect() {
+    const deuda = deudaPorPersona();
+    const prev = el.desprPersona.value;
+    const opt = (p) => `<option value="${p.id}">${escapeHtml(p.nombre)}${deuda.has(p.id) ? ` · debe ${formatMoney(deuda.get(p.id))}` : ''}</option>`;
+    const debe = personasCache.filter((p) => deuda.has(p.id)).sort((a, b) => deuda.get(b.id) - deuda.get(a.id));
+    const aldia = personasCache.filter((p) => !deuda.has(p.id));
+    el.desprPersona.innerHTML =
+      (debe.length ? `<optgroup label="Con pago pendiente (${debe.length})">${debe.map(opt).join('')}</optgroup>` : '') +
+      (aldia.length ? `<optgroup label="Al día">${aldia.map(opt).join('')}</optgroup>` : '');
+    const existe = personasCache.some((p) => String(p.id) === prev);
+    el.desprPersona.value = existe ? prev : debe.length ? String(debe[0].id) : aldia.length ? String(aldia[0].id) : '';
+    loadDesprendibles();
+  }
+
   async function loadCierres() {
     cierresCache = await apiFetch('/api/admin/cierres');
     const q = ultimaQuincenaTerminada();
@@ -250,40 +276,28 @@
       el.btnCerrarQuincena.dataset.inicio = q.inicio;
       el.btnCerrarQuincena.dataset.fin = q.fin;
     }
+    // Resumen compacto por cierre: totales + quién falta (toca un nombre para abrir su desprendible).
     el.cierresLista.innerHTML =
       cierresCache
         .map((c) => {
-          const pendiente = c.detalle.filter((r) => !r.pagado).reduce((s, r) => s + Number(r.total), 0);
-          const filas = c.detalle
-            .map(
-              (r) =>
-                `<tr><td>${escapeHtml(r.persona_nombre)}</td><td>${r.items}</td><td><strong>${formatMoney(r.total)}</strong></td><td><label><input type="checkbox" data-pago="${c.id}:${r.persona_id}" ${r.pagado ? 'checked' : ''} /> ${r.pagado ? 'Pagado' : 'Pendiente'}</label>${r.comprobante_url ? ` · <a href="${escapeHtml(r.comprobante_url)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}</td></tr>`
-            )
-            .join('') || '<tr><td colspan="4" class="muted">Sin consumos.</td></tr>';
-          return `<details class="card-box" style="margin-top:8px"><summary><strong>${labelQuincena(c.periodo_inicio, c.periodo_fin)}</strong> · Total ${formatMoney(c.total)} · Por cobrar ${formatMoney(pendiente)}</summary>
-            <div class="table-wrap"><table><thead><tr><th>Persona</th><th>Items</th><th>Total</th><th>Pago</th></tr></thead><tbody>${filas}</tbody></table></div>
-            <button type="button" class="btn btn-sm" data-csv="${c.id}">Exportar CSV</button></details>`;
+          const pend = c.detalle.filter((r) => !r.pagado && Number(r.total) > 0);
+          const porCobrar = pend.reduce((s, r) => s + Number(r.total), 0);
+          const chips = pend
+            .map((r) => `<button type="button" class="chip-deuda" data-ir="${r.persona_id}">${escapeHtml(r.persona_nombre)} · ${formatMoney(r.total)}</button>`)
+            .join('');
+          return `<div class="cierre-resumen">
+            <div class="cierre-head"><strong>${labelQuincena(c.periodo_inicio, c.periodo_fin)}</strong><span class="muted">Total ${formatMoney(c.total)}</span></div>
+            <div>${pend.length ? `<span class="pill pill-warn">Por cobrar ${formatMoney(porCobrar)} · ${pend.length}</span>` : '<span class="pill pill-ok">Todo pagado</span>'}</div>
+            ${chips ? `<div class="chips">${chips}</div>` : ''}
+            <button type="button" class="btn btn-sm" data-csv="${c.id}">Exportar CSV</button></div>`;
         })
         .join('') || '<p class="muted">Aún no hay quincenas cerradas.</p>';
 
-    el.cierresLista.querySelectorAll('[data-pago]').forEach((cb) => {
-      cb.addEventListener('change', async () => {
-        const [id, personaId] = cb.dataset.pago.split(':').map(Number);
-        try {
-          if (!cb.checked && !window.confirm('¿Marcar como pendiente? Se descarta el comprobante y la persona volverá a ver el aviso de pago.')) {
-            cb.checked = true;
-            return;
-          }
-          await apiFetch(`/api/admin/cierres/${id}/pago`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ persona_id: personaId, pagado: cb.checked }),
-          });
-          await loadCierres();
-        } catch (err) {
-          window.VW_UI.toast(err.message, 'error');
-          cb.checked = !cb.checked;
-        }
+    el.cierresLista.querySelectorAll('[data-ir]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        el.desprPersona.value = btn.dataset.ir;
+        loadDesprendibles();
+        el.desprPersona.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     });
     el.cierresLista.querySelectorAll('[data-csv]').forEach((btn) => {
@@ -295,36 +309,60 @@
         ]);
       });
     });
+    if (personasCache.length) refreshDesprSelect();
   }
 
-  // Desprendible por persona: consumo quincena a quincena.
+  async function cambiarPago(cierreId, personaId, pagado) {
+    if (!pagado && !window.confirm('¿Marcar como pendiente? Se descarta el comprobante y la persona volverá a ver el aviso de pago.')) return;
+    try {
+      await apiFetch(`/api/admin/cierres/${cierreId}/pago`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persona_id: personaId, pagado }),
+      });
+      await loadCierres();
+    } catch (err) {
+      window.VW_UI.toast(err.message, 'error');
+    }
+  }
+
+  // Desprendible de la persona elegida: consumo quincena a quincena + pago.
   const ESTADO_DESPR = { en_curso: 'En curso', sin_cerrar: 'Sin cerrar', cerrada: 'Cerrada' };
 
   async function loadDesprendibles() {
     const id = el.desprPersona.value;
     if (!id) {
-      el.desprLista.innerHTML = '';
+      el.desprLista.innerHTML = '<p class="muted">Aún no hay personas.</p>';
       return;
     }
     try {
       const data = await apiFetch(`/api/admin/personas/${id}/desprendibles`);
-      const nombre = el.desprPersona.selectedOptions[0].textContent;
+      const nombre = el.desprPersona.selectedOptions[0].textContent.split(' · ')[0];
       el.desprLista.innerHTML =
         data
           .map((q, i) => {
-            const filas = q.lineas
+            const lineas = q.lineas
               .map(
                 (l) =>
-                  `<tr${l.anulado ? ' style="opacity:.55;text-decoration:line-through"' : ''}><td>${new Date(l.fecha).toLocaleDateString('es-CO')}</td><td>${escapeHtml(l.producto)}</td><td>${l.cantidad}</td><td>${formatMoney(l.precio_unitario)}</td><td>${formatMoney(l.subtotal)}</td></tr>`
+                  `<div class="linea${l.anulado ? ' anulada' : ''}"><span class="linea-fecha">${new Date(l.fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</span><span class="linea-prod">${escapeHtml(l.producto)} ×${l.cantidad}</span><span class="linea-monto">${formatMoney(l.subtotal)}</span></div>`
               )
               .join('');
-            const pago = q.pagado === null ? '' : q.pagado ? ` · <span class="pill pill-ok">Pagado</span>${q.comprobante_url ? ` <a href="${escapeHtml(q.comprobante_url)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}` : ' · <span class="pill pill-warn">Pendiente de pago</span>';
-            return `<details class="card-box" style="margin-top:8px"${i === 0 ? ' open' : ''}><summary><strong>${labelQuincena(q.inicio, q.fin)}</strong> · ${formatMoney(q.total)} · ${ESTADO_DESPR[q.estado]}${pago}</summary>
-              <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>${filas}</tbody>
-              <tfoot><tr><td colspan="4"><strong>Total a cobrar</strong></td><td><strong>${formatMoney(q.total)}</strong></td></tr></tfoot></table></div>
+            const cerrada = q.cierre_id && Number(q.total_cierre ?? q.total) > 0;
+            const pago = cerrada
+              ? `<div class="pago-fila">${q.pagado ? '<span class="pill pill-ok">Pagado</span>' : '<span class="pill pill-warn">Pendiente de pago</span>'}${q.comprobante_url ? `<a href="${escapeHtml(q.comprobante_url)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}<button type="button" class="btn btn-sm ${q.pagado ? '' : 'btn-accent'}" data-pago="${q.cierre_id}:${id}:${q.pagado ? 0 : 1}">${q.pagado ? 'Marcar pendiente' : 'Marcar pagado'}</button></div>`
+              : '';
+            const abierta = i === 0 || (cerrada && !q.pagado);
+            return `<details class="desp-q"${abierta ? ' open' : ''}><summary><span><strong>${labelQuincena(q.inicio, q.fin)}</strong> <span class="muted">${ESTADO_DESPR[q.estado]}</span></span><strong>${formatMoney(q.total)}</strong></summary>
+              ${pago}<div class="lineas">${lineas}</div>
               <button type="button" class="btn btn-sm" data-despr-csv="${i}">Exportar CSV</button></details>`;
           })
           .join('') || '<p class="muted">Sin consumos registrados.</p>';
+      el.desprLista.querySelectorAll('[data-pago]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const [cid, pid, val] = btn.dataset.pago.split(':').map(Number);
+          cambiarPago(cid, pid, val === 1);
+        });
+      });
       el.desprLista.querySelectorAll('[data-despr-csv]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const q = data[Number(btn.dataset.desprCsv)];
@@ -471,11 +509,7 @@
 
   async function loadPersonas() {
     personasCache = await apiFetch('/api/admin/personas');
-    const sel = el.desprPersona.value;
-    el.desprPersona.innerHTML =
-      '<option value="">Elegí una persona…</option>' +
-      personasCache.map((p) => `<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('');
-    el.desprPersona.value = sel;
+    refreshDesprSelect();
     el.personasBody.innerHTML = personasCache
       .map(
         (p) => `
