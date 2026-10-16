@@ -333,9 +333,9 @@ function asyncRoute(handler) {
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!/^image\/(jpeg|png|webp)$/.test(file.mimetype)) {
+    if (!/^image\/(jpeg|png|webp|heic|heif)$/.test(file.mimetype)) {
       return cb(Object.assign(new Error('Solo se aceptan imágenes JPG, PNG o WEBP'), { status: 400 }));
     }
     cb(null, true);
