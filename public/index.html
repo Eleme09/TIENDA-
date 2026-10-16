@@ -89,7 +89,15 @@
       <div class="vw-modal-box">
         <h2 style="margin-top:0">Sube tu comprobante de pago</h2>
         <p id="comprobanteDetalle"></p>
-        <p class="muted">Pago por Nequi, Bancolombia u otro medio. Al subir la foto, tu quincena queda como pagada.</p>
+        <div class="nequi-box">
+          <img src="/nequi.svg" alt="Nequi" class="nequi-logo" />
+          <div>
+            <div class="nequi-num" id="nequiNum">310 562 5283</div>
+            <div class="muted">Jeiner Mena</div>
+          </div>
+          <button type="button" class="btn btn-sm" id="btnCopiarNequi">Copiar</button>
+        </div>
+        <p class="muted">Envía el pago a esa cuenta Nequi y sube la foto del comprobante. Al subirla, tu quincena queda como pagada.</p>
         <label class="btn btn-block" for="comprobanteFile">Tomar o elegir foto</label>
         <input id="comprobanteFile" type="file" accept="image/jpeg,image/png,image/webp" hidden />
         <img id="comprobantePreview" class="comprobante-preview" alt="Vista previa del comprobante" hidden />

@@ -320,6 +320,15 @@
     el.comprobanteOverlay.hidden = false;
   }
 
+  document.getElementById('btnCopiarNequi').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText('3105625283');
+      window.VW_UI.toast('Número copiado', 'success');
+    } catch (e) {
+      window.VW_UI.toast('Número: 310 562 5283', 'success');
+    }
+  });
+
   el.btnSubirComprobante.addEventListener('click', abrirComprobante);
   el.btnComprobanteLuego.addEventListener('click', () => {
     el.comprobanteOverlay.hidden = true;

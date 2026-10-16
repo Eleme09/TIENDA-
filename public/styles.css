@@ -805,3 +805,31 @@ td a {
 td a, summary a {
   color: var(--accent);
 }
+
+.nequi-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.nequi-box > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.nequi-logo {
+  width: 72px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.nequi-num {
+  font-weight: 700;
+  font-size: calc(17px * var(--fs));
+  letter-spacing: 0.03em;
+}
