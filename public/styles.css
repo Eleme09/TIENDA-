@@ -1113,3 +1113,21 @@ body.modal-lock {
   opacity: 0.5;
   text-decoration: line-through;
 }
+
+.add-box > summary {
+  display: inline-flex;
+  list-style: none;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.add-box > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Etiquetas redundantes fuera: el nombre y el estado se entienden solos. */
+.table-wrap td[data-label="Nombre"]::before,
+.table-wrap td[data-label="Estado"]::before,
+.table-wrap td[data-label="Persona"]::before {
+  display: none;
+}

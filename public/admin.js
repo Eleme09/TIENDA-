@@ -309,7 +309,10 @@
         ]);
       });
     });
-    if (personasCache.length) refreshDesprSelect();
+    if (personasCache.length) {
+      refreshDesprSelect();
+      renderPersonas();
+    }
   }
 
   async function cambiarPago(cierreId, personaId, pagado) {
@@ -510,20 +513,34 @@
   async function loadPersonas() {
     personasCache = await apiFetch('/api/admin/personas');
     refreshDesprSelect();
+    renderPersonas();
+  }
+
+  function renderPersonas() {
+    const deuda = deudaPorPersona();
     el.personasBody.innerHTML = personasCache
       .map(
         (p) => `
         <tr>
-          <td>${escapeHtml(p.nombre)}</td>
+          <td><strong>${escapeHtml(p.nombre)}</strong></td>
           <td>${p.activo ? '<span class="pill pill-ok">Activa</span>' : '<span class="pill pill-warn">Inactiva</span>'}</td>
+          <td>${deuda.has(p.id) ? `<span class="pill pill-warn">Debe ${formatMoney(deuda.get(p.id))}</span>` : '<span class="pill pill-ok">Al día</span>'}</td>
           <td>
-            <button type="button" class="btn btn-sm btn-accent" data-ver-consumo="${p.id}" data-nombre="${escapeHtml(p.nombre)}">Ver consumo</button>
+            <button type="button" class="btn btn-sm btn-accent" data-cuenta="${p.id}">Cuenta</button>
+            <button type="button" class="btn btn-sm" data-ver-consumo="${p.id}" data-nombre="${escapeHtml(p.nombre)}">Consumo</button>
             <button type="button" class="btn btn-sm" data-editar-persona="${p.id}">Editar</button>
             <button type="button" class="btn btn-sm btn-danger" data-vaciar="${p.id}" data-nombre="${escapeHtml(p.nombre)}">Vaciar lista</button>
           </td>
         </tr>`
       )
       .join('');
+    el.personasBody.querySelectorAll('[data-cuenta]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        el.desprPersona.value = btn.dataset.cuenta;
+        loadDesprendibles();
+        document.getElementById('cuentaBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
     el.personasBody.querySelectorAll('[data-ver-consumo]').forEach((btn) => {
       btn.addEventListener('click', () => mostrarDetallePersona(Number(btn.dataset.verConsumo), btn.dataset.nombre));
     });

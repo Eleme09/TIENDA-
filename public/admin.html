@@ -48,18 +48,45 @@
       <!-- Panel -->
       <section id="panelSection" hidden>
         <div class="tabnav">
-          <button type="button" class="tab-btn active" data-tab="tabReporte">Reporte</button>
-          <button type="button" class="tab-btn" data-tab="tabCierres">Cierres</button>
-          <button type="button" class="tab-btn" data-tab="tabPersonas">Personas</button>
+          <button type="button" class="tab-btn active" data-tab="tabPersonas">Personas</button>
           <button type="button" class="tab-btn" data-tab="tabProductos">Productos</button>
-          <button type="button" class="tab-btn" data-tab="tabFactura">Cargar factura</button>
           <button type="button" class="tab-btn" data-tab="tabNegocio">Negocio</button>
         </div>
 
-        <div id="tabReporte" class="panel active">
+        <div id="tabPersonas" class="panel active">
           <div class="card-box">
-            <h2>Reporte de consumo</h2>
-            <div class="quick-range">
+            <h2>Cierre de quincena</h2>
+            <p class="muted" id="cierrePendiente"></p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+              <button type="button" class="btn btn-accent" id="btnCerrarQuincena" hidden></button>
+            </div>
+            <div id="cierresLista"></div>
+          </div>
+
+          <div class="card-box">
+            <h2>Personas</h2>
+            <details class="add-box">
+              <summary class="btn btn-sm">+ Agregar persona</summary>
+              <form id="personaForm" class="row-inline" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                <div class="field" style="margin-bottom:0;flex:1;min-width:160px"><label>Nombre</label><input id="personaNombre" required /></div>
+                <div class="field" style="margin-bottom:0;width:100px"><label>PIN (3 díg.)</label><input id="personaPin" maxlength="4" pattern="[0-9]{3,4}" required /></div>
+                <div style="align-self:flex-end"><button type="submit" class="btn btn-accent">Agregar</button></div>
+              </form>
+            </details>
+            <div class="table-wrap">
+              <table><thead><tr><th>Nombre</th><th>Estado</th><th>Cuenta</th><th></th></tr></thead><tbody id="personasBody"></tbody></table>
+            </div>
+          </div>
+
+          <div class="card-box" id="cuentaBox">
+            <h2>Cuenta de la persona</h2>
+            <div class="field"><label>Persona</label><select id="desprPersona"><option value="">Elegí una persona…</option></select></div>
+            <div id="desprLista"></div>
+          </div>
+
+          <details class="card-box" id="reporteBox">
+            <summary><strong>Reporte por fechas</strong></summary>
+            <div class="quick-range" style="margin-top:10px">
               <button type="button" class="btn btn-sm" data-rango="actual">Quincena actual</button>
               <button type="button" class="btn btn-sm" data-rango="anterior">Quincena anterior</button>
               <button type="button" class="btn btn-sm" data-rango="mes">Este mes</button>
@@ -76,40 +103,7 @@
                 <tbody id="reporteBody"></tbody>
               </table>
             </div>
-          </div>
-        </div>
-
-        <div id="tabCierres" class="panel">
-          <div class="card-box">
-            <h2>Cierre de quincena</h2>
-            <p class="muted" id="cierrePendiente"></p>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-              <button type="button" class="btn btn-accent" id="btnCerrarQuincena" hidden></button>
-            </div>
-            <div id="cierresLista"></div>
-          </div>
-          <div class="card-box">
-            <h2>Desprendible por persona</h2>
-            <div class="field"><label>Persona</label><select id="desprPersona"><option value="">Elegí una persona…</option></select></div>
-            <div id="desprLista"></div>
-          </div>
-        </div>
-
-        <div id="tabPersonas" class="panel">
-          <div class="card-box">
-            <h2>Agregar persona</h2>
-            <form id="personaForm" class="row-inline" style="display:flex;gap:8px;flex-wrap:flex-end">
-              <div class="field" style="margin-bottom:0;flex:1;min-width:160px"><label>Nombre</label><input id="personaNombre" required /></div>
-              <div class="field" style="margin-bottom:0;width:100px"><label>PIN (3 díg.)</label><input id="personaPin" maxlength="4" pattern="[0-9]{3,4}" required /></div>
-              <div style="align-self:flex-end"><button type="submit" class="btn btn-accent">Agregar</button></div>
-            </form>
-          </div>
-          <div class="card-box">
-            <h2>Personas</h2>
-            <div class="table-wrap">
-              <table><thead><tr><th>Nombre</th><th>Estado</th><th></th></tr></thead><tbody id="personasBody"></tbody></table>
-            </div>
-          </div>
+          </details>
         </div>
 
         <div id="tabProductos" class="panel">
@@ -136,11 +130,8 @@
               <table><thead><tr><th></th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Estado</th><th></th></tr></thead><tbody id="productosBody"></tbody></table>
             </div>
           </div>
-        </div>
-
-        <div id="tabFactura" class="panel">
-          <div class="card-box">
-            <h2>Cargar stock por foto de factura</h2>
+          <details class="card-box" id="facturaBox">
+            <summary><strong>Cargar stock por foto de factura</strong></summary>
             <div class="upload-row">
               <input type="file" id="facturaFile" accept="image/*" />
               <button type="button" class="btn btn-accent" id="btnOcr">Leer factura</button>
@@ -155,7 +146,7 @@
               </div>
               <button type="button" class="btn btn-accent" id="btnAplicarFactura" style="margin-top:12px">Aplicar al inventario</button>
             </div>
-          </div>
+          </details>
         </div>
 
         <div id="tabNegocio" class="panel">
