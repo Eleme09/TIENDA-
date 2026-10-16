@@ -635,6 +635,171 @@ app.get(
   })
 );
 
+// ── Cierre de quincena ─────────────────────────────────────────────────
+// Quincena estándar: 1-15 y 16-fin de mes, hora Colombia (UTC-5).
+function validarQuincena(inicio, fin) {
+  const m1 = /^(\d{4})-(\d{2})-(\d{2})$/.exec(inicio || '');
+  const m2 = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fin || '');
+  if (!m1 || !m2) return false;
+  const [y, m, d1] = [Number(m1[1]), Number(m1[2]), Number(m1[3])];
+  if (m2[1] !== m1[1] || m2[2] !== m1[2]) return false;
+  const d2 = Number(m2[3]);
+  const ultimo = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return (d1 === 1 && d2 === 15) || (d1 === 16 && d2 === ultimo);
+}
+
+function hoyColombia() {
+  return new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+async function sbListCierres() {
+  const { data, error } = await supabase.from('tf_cierres').select('*').order('periodo_inicio', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+async function sbCerrarQuincena(inicio, fin) {
+  const { data: previo, error: e0 } = await supabase
+    .from('tf_cierres').select('id').eq('periodo_inicio', inicio).eq('periodo_fin', fin).maybeSingle();
+  if (e0) throw e0;
+  if (previo) return { error: 'Esa quincena ya está cerrada', status: 409 };
+  const { data, error } = await supabase
+    .from('tf_consumos')
+    .select('persona_id, cantidad, precio_unitario, anulado, tf_personas(nombre)')
+    .gte('created_at', `${inicio}T00:00:00-05:00`)
+    .lte('created_at', `${fin}T23:59:59.999-05:00`);
+  if (error) throw error;
+  const detalle = lib
+    .buildReporteQuincena(
+      data.map((c) => ({
+        persona_id: c.persona_id,
+        persona_nombre: c.tf_personas ? c.tf_personas.nombre : '(desconocido)',
+        cantidad: c.cantidad,
+        precio_unitario: c.precio_unitario,
+        anulado: c.anulado,
+      }))
+    )
+    .map((r) => ({ ...r, pagado: false, pagado_at: null }));
+  const total = detalle.reduce((s, r) => s + r.total, 0);
+  const { data: row, error: e2 } = await supabase
+    .from('tf_cierres')
+    .insert({ periodo_inicio: inicio, periodo_fin: fin, total, detalle })
+    .select()
+    .single();
+  if (e2) {
+    if (e2.code === '23505') return { error: 'Esa quincena ya está cerrada', status: 409 };
+    throw e2;
+  }
+  return { row };
+}
+
+// Desprendible por persona: consumo agrupado quincena a quincena (hora Colombia),
+// con el detalle de cada línea y, si la quincena está cerrada, su estado de pago.
+async function sbDesprendiblesPersona(personaId) {
+  const [{ data: consumos, error }, cierres] = await Promise.all([
+    supabase
+      .from('tf_consumos')
+      .select('id, cantidad, precio_unitario, anulado, motivo_anulacion, created_at, tf_productos(nombre)')
+      .eq('persona_id', personaId)
+      .order('created_at', { ascending: false }),
+    sbListCierres(),
+  ]);
+  if (error) throw error;
+  const pad = (n) => String(n).padStart(2, '0');
+  const grupos = new Map();
+  for (const c of consumos) {
+    const d = new Date(new Date(c.created_at).getTime() - 5 * 3600 * 1000);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth() + 1;
+    const primera = d.getUTCDate() <= 15;
+    const inicio = `${y}-${pad(m)}-${primera ? '01' : '16'}`;
+    const fin = `${y}-${pad(m)}-${primera ? '15' : pad(new Date(Date.UTC(y, m, 0)).getUTCDate())}`;
+    const key = inicio;
+    if (!grupos.has(key)) grupos.set(key, { inicio, fin, total: 0, items: 0, anulados: 0, lineas: [] });
+    const g = grupos.get(key);
+    const subtotal = (Number(c.precio_unitario) || 0) * (Number(c.cantidad) || 0);
+    if (c.anulado) g.anulados += 1;
+    else {
+      g.total += subtotal;
+      g.items += Number(c.cantidad) || 0;
+    }
+    g.lineas.push({
+      fecha: c.created_at,
+      producto: c.tf_productos ? c.tf_productos.nombre : '(producto)',
+      cantidad: c.cantidad,
+      precio_unitario: c.precio_unitario,
+      subtotal,
+      anulado: c.anulado,
+      motivo_anulacion: c.motivo_anulacion,
+    });
+  }
+  const hoy = hoyColombia();
+  return Array.from(grupos.values())
+    .sort((a, b) => (a.inicio < b.inicio ? 1 : -1))
+    .map((g) => {
+      const cierre = cierres.find((x) => x.periodo_inicio === g.inicio && x.periodo_fin === g.fin);
+      const det = cierre ? cierre.detalle.find((r) => r.persona_id === personaId) : null;
+      return {
+        ...g,
+        estado: cierre ? 'cerrada' : g.fin >= hoy ? 'en_curso' : 'sin_cerrar',
+        cierre_id: cierre ? cierre.id : null,
+        total_cierre: det ? det.total : null,
+        pagado: det ? Boolean(det.pagado) : null,
+      };
+    });
+}
+
+async function sbMarcarPagoCierre(id, personaId, pagado) {
+  const { data: cierre, error } = await supabase.from('tf_cierres').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  if (!cierre) return null;
+  const detalle = cierre.detalle.map((r) =>
+    r.persona_id === personaId ? { ...r, pagado, pagado_at: pagado ? new Date().toISOString() : null } : r
+  );
+  const { data: row, error: e2 } = await supabase.from('tf_cierres').update({ detalle }).eq('id', id).select().single();
+  if (e2) throw e2;
+  return row;
+}
+
+app.get(
+  '/api/admin/cierres',
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    res.json(await sbListCierres());
+  })
+);
+
+app.post(
+  '/api/admin/cierres',
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const { inicio, fin } = req.body || {};
+    if (!validarQuincena(inicio, fin)) return res.status(400).json({ error: 'Quincena inválida (1-15 o 16-fin de mes)' });
+    if (fin >= hoyColombia()) return res.status(400).json({ error: 'La quincena todavía no termina' });
+    const r = await sbCerrarQuincena(inicio, fin);
+    if (r.error) return res.status(r.status).json({ error: r.error });
+    res.json(r.row);
+  })
+);
+
+app.get(
+  '/api/admin/personas/:id/desprendibles',
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    res.json(await sbDesprendiblesPersona(Number(req.params.id)));
+  })
+);
+
+app.put(
+  '/api/admin/cierres/:id/pago',
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const row = await sbMarcarPagoCierre(Number(req.params.id), Number(req.body.persona_id), Boolean(req.body.pagado));
+    if (!row) return res.status(404).json({ error: 'Cierre no encontrado' });
+    res.json(row);
+  })
+);
+
 app.get(
   '/api/admin/negocio',
   requireAdmin,

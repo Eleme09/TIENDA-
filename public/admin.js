@@ -17,6 +17,11 @@
     reporteHasta: document.getElementById('reporteHasta'),
     btnReporte: document.getElementById('btnReporte'),
     reporteBody: document.getElementById('reporteBody'),
+    btnCerrarQuincena: document.getElementById('btnCerrarQuincena'),
+    cierrePendiente: document.getElementById('cierrePendiente'),
+    cierresLista: document.getElementById('cierresLista'),
+    desprPersona: document.getElementById('desprPersona'),
+    desprLista: document.getElementById('desprLista'),
     personaForm: document.getElementById('personaForm'),
     personaNombre: document.getElementById('personaNombre'),
     personaPin: document.getElementById('personaPin'),
@@ -69,6 +74,7 @@
     el.panelSection.hidden = false;
     el.btnLogout.hidden = false;
     loadReporte();
+    loadCierres();
     loadPersonas();
     loadProductos();
     loadNegocio();
@@ -167,6 +173,150 @@
       ...reporteCache.map((r) => [r.persona_nombre, r.items, r.total, r.anulados]),
     ];
     downloadCsv(`reporte_quincena_${new Date().toISOString().slice(0, 10)}.csv`, rows);
+  });
+
+  // ── Cierres de quincena ─────────────────────────────────────────────
+
+  const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+  function labelQuincena(inicio, fin) {
+    const [y, m, d1] = inicio.split('-').map(Number);
+    return `${d1} al ${Number(fin.slice(8))} ${MESES[m - 1]} ${y}`;
+  }
+
+  // Última quincena ya terminada (hora Colombia), en YYYY-MM-DD.
+  function ultimaQuincenaTerminada() {
+    const hoy = new Date(Date.now() - 5 * 3600 * 1000);
+    const y = hoy.getUTCFullYear();
+    const m = hoy.getUTCMonth();
+    const pad = (n) => String(n).padStart(2, '0');
+    if (hoy.getUTCDate() <= 15) {
+      const prev = new Date(Date.UTC(y, m, 0));
+      return { inicio: `${prev.getUTCFullYear()}-${pad(prev.getUTCMonth() + 1)}-16`, fin: `${prev.getUTCFullYear()}-${pad(prev.getUTCMonth() + 1)}-${pad(prev.getUTCDate())}` };
+    }
+    return { inicio: `${y}-${pad(m + 1)}-01`, fin: `${y}-${pad(m + 1)}-15` };
+  }
+
+  let cierresCache = [];
+
+  async function loadCierres() {
+    cierresCache = await apiFetch('/api/admin/cierres');
+    const q = ultimaQuincenaTerminada();
+    const yaCerrada = cierresCache.some((c) => c.periodo_inicio === q.inicio && c.periodo_fin === q.fin);
+    el.btnCerrarQuincena.hidden = yaCerrada;
+    el.cierrePendiente.textContent = yaCerrada
+      ? 'La última quincena terminada ya está cerrada.'
+      : `Pendiente por cerrar: ${labelQuincena(q.inicio, q.fin)}.`;
+    if (!yaCerrada) {
+      el.btnCerrarQuincena.textContent = `Cerrar quincena ${labelQuincena(q.inicio, q.fin)}`;
+      el.btnCerrarQuincena.dataset.inicio = q.inicio;
+      el.btnCerrarQuincena.dataset.fin = q.fin;
+    }
+    el.cierresLista.innerHTML =
+      cierresCache
+        .map((c) => {
+          const pendiente = c.detalle.filter((r) => !r.pagado).reduce((s, r) => s + Number(r.total), 0);
+          const filas = c.detalle
+            .map(
+              (r) =>
+                `<tr><td>${escapeHtml(r.persona_nombre)}</td><td>${r.items}</td><td><strong>${formatMoney(r.total)}</strong></td><td><label><input type="checkbox" data-pago="${c.id}:${r.persona_id}" ${r.pagado ? 'checked' : ''} /> ${r.pagado ? 'Pagado' : 'Pendiente'}</label></td></tr>`
+            )
+            .join('') || '<tr><td colspan="4" class="muted">Sin consumos.</td></tr>';
+          return `<details class="card-box" style="margin-top:8px"><summary><strong>${labelQuincena(c.periodo_inicio, c.periodo_fin)}</strong> · Total ${formatMoney(c.total)} · Por cobrar ${formatMoney(pendiente)}</summary>
+            <div class="table-wrap"><table><thead><tr><th>Persona</th><th>Items</th><th>Total</th><th>Pago</th></tr></thead><tbody>${filas}</tbody></table></div>
+            <button type="button" class="btn btn-sm" data-csv="${c.id}">Exportar CSV</button></details>`;
+        })
+        .join('') || '<p class="muted">Aún no hay quincenas cerradas.</p>';
+
+    el.cierresLista.querySelectorAll('[data-pago]').forEach((cb) => {
+      cb.addEventListener('change', async () => {
+        const [id, personaId] = cb.dataset.pago.split(':').map(Number);
+        try {
+          await apiFetch(`/api/admin/cierres/${id}/pago`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ persona_id: personaId, pagado: cb.checked }),
+          });
+          await loadCierres();
+        } catch (err) {
+          window.VW_UI.toast(err.message, 'error');
+          cb.checked = !cb.checked;
+        }
+      });
+    });
+    el.cierresLista.querySelectorAll('[data-csv]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const c = cierresCache.find((x) => x.id === Number(btn.dataset.csv));
+        downloadCsv(`cierre_${c.periodo_inicio}_${c.periodo_fin}.csv`, [
+          ['Persona', 'Items', 'Total', 'Pagado'],
+          ...c.detalle.map((r) => [r.persona_nombre, r.items, r.total, r.pagado ? 'Sí' : 'No']),
+        ]);
+      });
+    });
+  }
+
+  // Desprendible por persona: consumo quincena a quincena.
+  const ESTADO_DESPR = { en_curso: 'En curso', sin_cerrar: 'Sin cerrar', cerrada: 'Cerrada' };
+
+  async function loadDesprendibles() {
+    const id = el.desprPersona.value;
+    if (!id) {
+      el.desprLista.innerHTML = '';
+      return;
+    }
+    try {
+      const data = await apiFetch(`/api/admin/personas/${id}/desprendibles`);
+      const nombre = el.desprPersona.selectedOptions[0].textContent;
+      el.desprLista.innerHTML =
+        data
+          .map((q, i) => {
+            const filas = q.lineas
+              .map(
+                (l) =>
+                  `<tr${l.anulado ? ' style="opacity:.55;text-decoration:line-through"' : ''}><td>${new Date(l.fecha).toLocaleDateString('es-CO')}</td><td>${escapeHtml(l.producto)}</td><td>${l.cantidad}</td><td>${formatMoney(l.precio_unitario)}</td><td>${formatMoney(l.subtotal)}</td></tr>`
+              )
+              .join('');
+            const pago = q.pagado === null ? '' : q.pagado ? ' · <span class="pill">Pagado</span>' : ' · <span class="pill pill-warn">Pendiente de pago</span>';
+            return `<details class="card-box" style="margin-top:8px"${i === 0 ? ' open' : ''}><summary><strong>${labelQuincena(q.inicio, q.fin)}</strong> · ${formatMoney(q.total)} · ${ESTADO_DESPR[q.estado]}${pago}</summary>
+              <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>${filas}</tbody>
+              <tfoot><tr><td colspan="4"><strong>Total a cobrar</strong></td><td><strong>${formatMoney(q.total)}</strong></td></tr></tfoot></table></div>
+              <button type="button" class="btn btn-sm" data-despr-csv="${i}">Exportar CSV</button></details>`;
+          })
+          .join('') || '<p class="muted">Sin consumos registrados.</p>';
+      el.desprLista.querySelectorAll('[data-despr-csv]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const q = data[Number(btn.dataset.desprCsv)];
+          downloadCsv(`desprendible_${nombre}_${q.inicio}.csv`.replace(/\s+/g, '_'), [
+            ['Fecha', 'Producto', 'Cantidad', 'Precio', 'Subtotal', 'Anulado'],
+            ...q.lineas.map((l) => [new Date(l.fecha).toLocaleDateString('es-CO'), l.producto, l.cantidad, l.precio_unitario, l.subtotal, l.anulado ? 'Sí' : 'No']),
+            ['', '', '', 'Total', q.total, ''],
+          ]);
+        });
+      });
+    } catch (err) {
+      window.VW_UI.toast(err.message, 'error');
+    }
+  }
+
+  el.desprPersona.addEventListener('change', loadDesprendibles);
+
+  el.btnCerrarQuincena.addEventListener('click', async () => {
+    const { inicio, fin } = el.btnCerrarQuincena.dataset;
+    if (!window.confirm(`¿Cerrar la quincena ${labelQuincena(inicio, fin)}? Queda congelada y no se puede repetir.`)) return;
+    el.btnCerrarQuincena.disabled = true;
+    try {
+      await apiFetch('/api/admin/cierres', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inicio, fin }),
+      });
+      window.VW_UI.toast('Quincena cerrada', 'success');
+      await loadCierres();
+    } catch (err) {
+      window.VW_UI.toast(err.message, 'error');
+    } finally {
+      el.btnCerrarQuincena.disabled = false;
+    }
   });
 
   // Dos motivos fijos, igual que en el autoservicio — acá el dueño puede
@@ -279,6 +429,11 @@
 
   async function loadPersonas() {
     personasCache = await apiFetch('/api/admin/personas');
+    const sel = el.desprPersona.value;
+    el.desprPersona.innerHTML =
+      '<option value="">Elegí una persona…</option>' +
+      personasCache.map((p) => `<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('');
+    el.desprPersona.value = sel;
     el.personasBody.innerHTML = personasCache
       .map(
         (p) => `

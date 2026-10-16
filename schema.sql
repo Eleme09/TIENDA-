@@ -76,3 +76,17 @@ alter table tf_consumos enable row level security;
 alter table tf_facturas enable row level security;
 -- Sin policies: el backend siempre usa la service_role key (bypassea RLS).
 -- Mismo patrón que VENTA-WEB.
+
+-- Cierre de quincena: foto congelada de lo que debe cada persona al terminar
+-- la quincena (1-15 o 16-fin de mes). `detalle` = [{persona_id, persona_nombre,
+-- total, items, anulados, pagado, pagado_at}]. Una quincena solo se cierra una vez.
+create table if not exists tf_cierres (
+  id bigint generated always as identity primary key,
+  periodo_inicio date not null,
+  periodo_fin date not null,
+  total numeric(14, 2) not null default 0,
+  detalle jsonb not null default '[]'::jsonb,
+  cerrado_at timestamptz not null default now(),
+  unique (periodo_inicio, periodo_fin)
+);
+alter table tf_cierres enable row level security;

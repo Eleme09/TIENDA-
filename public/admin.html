@@ -49,6 +49,7 @@
       <section id="panelSection" hidden>
         <div class="tabnav">
           <button type="button" class="tab-btn active" data-tab="tabReporte">Reporte</button>
+          <button type="button" class="tab-btn" data-tab="tabCierres">Cierres</button>
           <button type="button" class="tab-btn" data-tab="tabPersonas">Personas</button>
           <button type="button" class="tab-btn" data-tab="tabProductos">Productos</button>
           <button type="button" class="tab-btn" data-tab="tabFactura">Cargar factura</button>
@@ -70,6 +71,22 @@
                 <tbody id="reporteBody"></tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <div id="tabCierres" class="panel">
+          <div class="card-box">
+            <h2>Cierre de quincena</h2>
+            <p class="muted" id="cierrePendiente"></p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+              <button type="button" class="btn btn-accent" id="btnCerrarQuincena" hidden></button>
+            </div>
+            <div id="cierresLista"></div>
+          </div>
+          <div class="card-box">
+            <h2>Desprendible por persona</h2>
+            <div class="field"><label>Persona</label><select id="desprPersona"><option value="">Elegí una persona…</option></select></div>
+            <div id="desprLista"></div>
           </div>
         </div>
 
