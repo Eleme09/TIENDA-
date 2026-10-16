@@ -92,6 +92,11 @@ function parseInvoicePosRow(line) {
 // "Gasas x30 12000" → { cantidad, nombre, precio }. Es una heurística, no
 // magia — por eso el flujo de factura siempre muestra esto en una tabla
 // editable antes de guardar nada.
+// Unidades de medida/empaque: "105 gr", "330 ml", "1.5 L", "x12 und" describen el
+// producto, no son cantidad ni precio ni un producto aparte.
+const UNIT_RE = '(?:gr?s?|grs?|gramos?|kg|kgs?|mg|ml|cc|lts?|l|litros?|oz|und?s?|unid(?:ades)?|pack|cm|mm|mts?)';
+const MEASURE_ONLY_RE = new RegExp(`^(?:x\\s*)?\\d+(?:[.,]\\d+)?\\s*${UNIT_RE}\\.?$`, 'i');
+
 function parseInvoiceLine(rawLine) {
   const line = String(rawLine || '').trim();
   if (!line) return null;
@@ -107,6 +112,8 @@ function parseInvoiceLine(rawLine) {
   // final.
   let precio = null;
   const priceMatch = rest.match(/(\d[\d.,]{2,})\s*$/);
+  // "...105" sin unidad pero precedido de una medida (ej. "Papas 105 gr 3500") se maneja
+  // porque la medida queda en el nombre; solo se toma como precio un número al final.
   if (priceMatch) {
     precio = Number(priceMatch[1].replace(/[.,]/g, ''));
     rest = rest.slice(0, priceMatch.index).trim();
@@ -115,7 +122,7 @@ function parseInvoiceLine(rawLine) {
   // cantidad al inicio ("2 Bolsa de papas") o como token "x30" en
   // cualquier parte de lo que queda ("Gasas x30").
   let cantidad = null;
-  let m = rest.match(/^(\d{1,4})\s+(.+)$/);
+  let m = rest.match(new RegExp(`^(\\d{1,4})\\s+(?!${UNIT_RE}\\b)(.+)$`, 'i'));
   if (m) {
     cantidad = Number(m[1]);
     rest = m[2].trim();
@@ -129,12 +136,20 @@ function parseInvoiceLine(rawLine) {
 
   const nombre = rest.replace(/[-–—:]+$/, '').trim();
   if (!nombre) return null;
+  // El nombre debe tener al menos una palabra de 3+ letras (no solo "gr", "un", "x").
+  if (!/[a-zá-úñ]{3,}/i.test(nombre)) return null;
+
+  const precioOk = precio && precio >= 100 ? precio : null;
+  const cantidadOk = cantidad && cantidad > 0 && cantidad < 1000 ? cantidad : null;
+  // Sin precio ni cantidad explícita no hay evidencia de que sea un producto
+  // (direcciones, nombres de barrio, textos sueltos del encabezado).
+  if (!precioOk && !cantidadOk) return null;
 
   return {
     raw: line,
-    cantidad: cantidad && cantidad > 0 ? cantidad : 1,
+    cantidad: cantidadOk || 1,
     nombre,
-    precio: precio && precio > 0 ? precio : null,
+    precio: precioOk,
   };
 }
 
@@ -184,6 +199,20 @@ const JUNK_LINE_PATTERNS = [
   /www\./i,
   /\.com/i,
   /^n[°º]\s/i,
+  // direcciones: barrio, manzana, local, piso, etc. y el símbolo "#" de nomenclatura
+  /\bbarrio\b/i,
+  /\bmanzana\b|\bmz\.?\s*\w/i,
+  /\b(apto|apartamento|oficina|edificio|conjunto|torre|bodega|vereda|sector|urbanizaci[oó]n|lote|municipio|departamento)\b/i,
+  /\b(cll?|kra?|cr|tv|trans(?:versal)?|diag(?:onal)?|autopista|autop|km)\.?\s*\d/i,
+  /#\s*\d/,
+  /\blocal\s*\d/i,
+  /\bpiso\s*\d/i,
+  // teléfonos celulares/fijos, fechas y horas
+  /\b3\d{9}\b/,
+  /\(\d{2,3}\)\s*\d/,
+  /\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/,
+  /\b\d{1,2}:\d{2}\b/,
+  /^\$/,
   /^no\.?\s/i,
   // encabezado de columnas del recibo de caja ("CÓDIGO  DESCRIPCIÓN  CANT. ...")
   /^c[oó]digo\b.*descripci[oó]n/i,
@@ -214,6 +243,7 @@ function isJunkInvoiceLine(line) {
   if (/^(#|producto|descripci[oó]n|cant\.?|precio\s*unit\.?|vr\.?\s*unit\.?|vr\.?\s*total|iva|subtotal)$/i.test(trimmed))
     return true;
   if (/^\d{1,3}$/.test(trimmed)) return true;
+  if (MEASURE_ONLY_RE.test(trimmed)) return true;
   // sin ninguna letra (teléfonos, NIT, códigos sueltos)
   if (!/[a-zá-úñA-ZÁ-ÚÑ]/.test(trimmed)) return true;
   // encabezado de columnas con cualquier orden ("PLU UM VALOR U CÓDIGO DESCRIPCIÓN ...")

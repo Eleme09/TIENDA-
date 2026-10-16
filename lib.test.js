@@ -241,3 +241,35 @@ test('buildReporteQuincena: agrupa por persona, separa anulados del total', () =
   // ordenado de mayor a menor total
   assert.equal(reporte[0].persona_id, 2);
 });
+
+test('parseInvoiceText: ignora direcciones, medidas sueltas y encabezados', () => {
+  const texto = [
+    'Barrio Cuba Pereira',
+    'Calle 12 # 5-30',
+    'Mz 4 Casa 12',
+    'Tel: 3105625283',
+    '12/10/2026',
+    '105 gr',
+    '330 ml',
+    'x12 und',
+    'Pereira',
+  ].join('\n');
+  assert.deepEqual(lib.parseInvoiceText(texto), []);
+});
+
+test('parseInvoiceText: la medida queda en el nombre y no es cantidad ni precio', () => {
+  const r = lib.parseInvoiceText('Papas Margarita 105 gr 3500\n2 Leche Entera 900 ml 6000\nGaseosa 1.5 L 4800');
+  assert.deepEqual(
+    r.map((x) => [x.cantidad, x.nombre, x.precio]),
+    [
+      [1, 'Papas Margarita 105 gr', 3500],
+      [2, 'Leche Entera 900 ml', 6000],
+      [1, 'Gaseosa 1.5 L', 4800],
+    ]
+  );
+});
+
+test('parseInvoiceText: texto suelto sin precio ni cantidad no es producto', () => {
+  assert.deepEqual(lib.parseInvoiceText('Centro Comercial\nGracias'), []);
+  assert.equal(lib.parseInvoiceText('3 Chicle')[0].cantidad, 3);
+});
