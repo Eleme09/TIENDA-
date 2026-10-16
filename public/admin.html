@@ -63,24 +63,10 @@
             <div id="cierresLista"></div>
           </div>
 
-          <div class="card-box">
-            <h2>Personas</h2>
-            <details class="add-box">
-              <summary class="btn btn-sm">+ Agregar persona</summary>
-              <form id="personaForm" class="row-inline" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-                <div class="field" style="margin-bottom:0;flex:1;min-width:160px"><label>Nombre</label><input id="personaNombre" required /></div>
-                <div class="field" style="margin-bottom:0;width:100px"><label>PIN (3 díg.)</label><input id="personaPin" maxlength="4" pattern="[0-9]{3,4}" required /></div>
-                <div style="align-self:flex-end"><button type="submit" class="btn btn-accent">Agregar</button></div>
-              </form>
-            </details>
-            <div class="table-wrap">
-              <table><thead><tr><th>Nombre</th><th>Estado</th><th>Cuenta</th><th></th></tr></thead><tbody id="personasBody"></tbody></table>
-            </div>
-          </div>
-
-          <div class="card-box" id="cuentaBox">
-            <h2>Cuenta de la persona</h2>
-            <div class="field"><label>Persona</label><select id="desprPersona"><option value="">Elegí una persona…</option></select></div>
+          <div class="card-box" id="personaBox">
+            <h2>Persona</h2>
+            <div class="field"><label for="desprPersona">Elegir persona</label><select id="desprPersona"><option value="">Elegí una persona…</option></select></div>
+            <div id="personaAcciones" class="persona-acciones"></div>
             <div id="desprLista"></div>
           </div>
 
@@ -103,6 +89,15 @@
                 <tbody id="reporteBody"></tbody>
               </table>
             </div>
+          </details>
+
+          <details class="card-box add-box" id="agregarPersonaBox">
+            <summary class="btn">+ Agregar persona</summary>
+            <form id="personaForm" class="row-inline" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+              <div class="field" style="margin-bottom:0;flex:1;min-width:160px"><label>Nombre</label><input id="personaNombre" required /></div>
+              <div class="field" style="margin-bottom:0;width:100px"><label>PIN (3 díg.)</label><input id="personaPin" maxlength="4" pattern="[0-9]{3,4}" required /></div>
+              <div style="align-self:flex-end"><button type="submit" class="btn btn-accent">Agregar</button></div>
+            </form>
           </details>
         </div>
 

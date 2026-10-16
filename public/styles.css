@@ -1131,3 +1131,78 @@ body.modal-lock {
 .table-wrap td[data-label="Persona"]::before {
   display: none;
 }
+
+/* Personas: vista sobria, una sola persona a la vez. */
+.cierre-resumen {
+  display: block;
+  padding: 0;
+  background: transparent;
+}
+
+.cierre-resumen > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.cierre-resumen > .nombres,
+.cierre-resumen > .btn {
+  margin: 0 12px 12px;
+}
+
+.nombres {
+  display: flex;
+  flex-direction: column;
+}
+
+.nombre-fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 8px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.nombre-fila.pagada {
+  color: var(--muted);
+}
+
+.nombre-fila.sel {
+  background: var(--surface-3);
+}
+
+.persona-estado {
+  margin-bottom: 10px;
+}
+
+.debe {
+  color: var(--danger);
+}
+
+.persona-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.btn-quiet-danger {
+  margin-left: auto;
+  color: var(--danger);
+  background: none;
+  border-color: transparent;
+}
+
+.add-box > summary {
+  display: block;
+  text-align: center;
+}

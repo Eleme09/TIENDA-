@@ -261,6 +261,7 @@
     const existe = personasCache.some((p) => String(p.id) === prev);
     el.desprPersona.value = existe ? prev : debe.length ? String(debe[0].id) : aldia.length ? String(aldia[0].id) : '';
     loadDesprendibles();
+    renderPersonas();
   }
 
   async function loadCierres() {
@@ -276,28 +277,32 @@
       el.btnCerrarQuincena.dataset.inicio = q.inicio;
       el.btnCerrarQuincena.dataset.fin = q.fin;
     }
-    // Resumen compacto por cierre: totales + quién falta (toca un nombre para abrir su desprendible).
+    // Cada cierre es un desplegable: al abrirlo salen los nombres; elegir uno muestra su cuenta abajo.
     el.cierresLista.innerHTML =
       cierresCache
         .map((c) => {
-          const pend = c.detalle.filter((r) => !r.pagado && Number(r.total) > 0);
-          const porCobrar = pend.reduce((s, r) => s + Number(r.total), 0);
-          const chips = pend
-            .map((r) => `<button type="button" class="chip-deuda" data-ir="${r.persona_id}">${escapeHtml(r.persona_nombre)} · ${formatMoney(r.total)}</button>`)
+          const filas = c.detalle.filter((r) => Number(r.total) > 0).sort((a, b) => Number(a.pagado) - Number(b.pagado) || b.total - a.total);
+          const porCobrar = filas.filter((r) => !r.pagado).reduce((s, r) => s + Number(r.total), 0);
+          const nombres = filas
+            .map(
+              (r) =>
+                `<button type="button" class="nombre-fila${r.pagado ? ' pagada' : ''}" data-ir="${r.persona_id}"><span>${escapeHtml(r.persona_nombre)}</span><span>${r.pagado ? 'Pagado' : formatMoney(r.total)}</span></button>`
+            )
             .join('');
-          return `<div class="cierre-resumen">
-            <div class="cierre-head"><strong>${labelQuincena(c.periodo_inicio, c.periodo_fin)}</strong><span class="muted">Total ${formatMoney(c.total)}</span></div>
-            <div>${pend.length ? `<span class="pill pill-warn">Por cobrar ${formatMoney(porCobrar)} · ${pend.length}</span>` : '<span class="pill pill-ok">Todo pagado</span>'}</div>
-            ${chips ? `<div class="chips">${chips}</div>` : ''}
-            <button type="button" class="btn btn-sm" data-csv="${c.id}">Exportar CSV</button></div>`;
+          return `<details class="cierre-resumen">
+            <summary><span><strong>${labelQuincena(c.periodo_inicio, c.periodo_fin)}</strong><br /><span class="muted">${porCobrar ? `Por cobrar ${formatMoney(porCobrar)}` : 'Todo pagado'}</span></span><span class="muted">Total ${formatMoney(c.total)}</span></summary>
+            <div class="nombres">${nombres || '<p class="muted">Sin consumos.</p>'}</div>
+            <button type="button" class="btn btn-sm" data-csv="${c.id}">Exportar CSV</button></details>`;
         })
         .join('') || '<p class="muted">Aún no hay quincenas cerradas.</p>';
 
     el.cierresLista.querySelectorAll('[data-ir]').forEach((btn) => {
       btn.addEventListener('click', () => {
         el.desprPersona.value = btn.dataset.ir;
+        el.cierresLista.querySelectorAll('.nombre-fila').forEach((b) => b.classList.toggle('sel', b.dataset.ir === btn.dataset.ir));
         loadDesprendibles();
-        el.desprPersona.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        renderPersonas();
+        document.getElementById('personaBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     });
     el.cierresLista.querySelectorAll('[data-csv]').forEach((btn) => {
@@ -309,10 +314,7 @@
         ]);
       });
     });
-    if (personasCache.length) {
-      refreshDesprSelect();
-      renderPersonas();
-    }
+    if (personasCache.length) refreshDesprSelect();
   }
 
   async function cambiarPago(cierreId, personaId, pagado) {
@@ -352,7 +354,7 @@
               .join('');
             const cerrada = q.cierre_id && Number(q.total_cierre ?? q.total) > 0;
             const pago = cerrada
-              ? `<div class="pago-fila">${q.pagado ? '<span class="pill pill-ok">Pagado</span>' : '<span class="pill pill-warn">Pendiente de pago</span>'}${q.comprobante_url ? `<a href="${escapeHtml(q.comprobante_url)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}<button type="button" class="btn btn-sm ${q.pagado ? '' : 'btn-accent'}" data-pago="${q.cierre_id}:${id}:${q.pagado ? 0 : 1}">${q.pagado ? 'Marcar pendiente' : 'Marcar pagado'}</button></div>`
+              ? `<div class="pago-fila">${q.pagado ? '<span class="muted">Pagado</span>' : '<strong class="debe">Pendiente de pago</strong>'}${q.comprobante_url ? `<a href="${escapeHtml(q.comprobante_url)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}<button type="button" class="btn btn-sm ${q.pagado ? '' : 'btn-accent'}" data-pago="${q.cierre_id}:${id}:${q.pagado ? 0 : 1}">${q.pagado ? 'Marcar pendiente' : 'Marcar pagado'}</button></div>`
               : '';
             const abierta = i === 0 || (cerrada && !q.pagado);
             return `<details class="desp-q"${abierta ? ' open' : ''}><summary><span><strong>${labelQuincena(q.inicio, q.fin)}</strong> <span class="muted">${ESTADO_DESPR[q.estado]}</span></span><strong>${formatMoney(q.total)}</strong></summary>
@@ -381,7 +383,10 @@
     }
   }
 
-  el.desprPersona.addEventListener('change', loadDesprendibles);
+  el.desprPersona.addEventListener('change', () => {
+    loadDesprendibles();
+    renderPersonas();
+  });
 
   el.btnCerrarQuincena.addEventListener('click', async () => {
     const { inicio, fin } = el.btnCerrarQuincena.dataset;
@@ -513,58 +518,40 @@
   async function loadPersonas() {
     personasCache = await apiFetch('/api/admin/personas');
     refreshDesprSelect();
-    renderPersonas();
   }
 
+  // Acciones de la persona elegida (solo una a la vez, para no saturar la pantalla).
   function renderPersonas() {
+    const p = personasCache.find((x) => String(x.id) === el.desprPersona.value);
+    const box = document.getElementById('personaAcciones');
+    if (!p) {
+      box.innerHTML = '';
+      return;
+    }
     const deuda = deudaPorPersona();
-    el.personasBody.innerHTML = personasCache
-      .map(
-        (p) => `
-        <tr>
-          <td><strong>${escapeHtml(p.nombre)}</strong></td>
-          <td>${p.activo ? '<span class="pill pill-ok">Activa</span>' : '<span class="pill pill-warn">Inactiva</span>'}</td>
-          <td>${deuda.has(p.id) ? `<span class="pill pill-warn">Debe ${formatMoney(deuda.get(p.id))}</span>` : '<span class="pill pill-ok">Al día</span>'}</td>
-          <td>
-            <button type="button" class="btn btn-sm btn-accent" data-cuenta="${p.id}">Cuenta</button>
-            <button type="button" class="btn btn-sm" data-ver-consumo="${p.id}" data-nombre="${escapeHtml(p.nombre)}">Consumo</button>
-            <button type="button" class="btn btn-sm" data-editar-persona="${p.id}">Editar</button>
-            <button type="button" class="btn btn-sm btn-danger" data-vaciar="${p.id}" data-nombre="${escapeHtml(p.nombre)}">Vaciar lista</button>
-          </td>
-        </tr>`
-      )
-      .join('');
-    el.personasBody.querySelectorAll('[data-cuenta]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        el.desprPersona.value = btn.dataset.cuenta;
+    box.innerHTML = `<div class="persona-estado"><span>${p.activo ? 'Activa' : 'Inactiva'}</span> · ${
+      deuda.has(p.id) ? `<strong class="debe">Debe ${formatMoney(deuda.get(p.id))}</strong>` : '<span class="muted">Al día</span>'
+    }</div>
+      <div class="persona-botones">
+        <button type="button" class="btn btn-sm" id="pConsumo">Ver consumo</button>
+        <button type="button" class="btn btn-sm" id="pEditar">Editar</button>
+        <button type="button" class="btn btn-sm btn-quiet-danger" id="pVaciar">Vaciar lista</button>
+      </div>`;
+    document.getElementById('pConsumo').addEventListener('click', () => mostrarDetallePersona(p.id, p.nombre));
+    document.getElementById('pEditar').addEventListener('click', () => abrirEditarPersona(p));
+    document.getElementById('pVaciar').addEventListener('click', async () => {
+      const ok = await window.VW_UI.confirmDialog(
+        `¿Vaciar la lista de ${p.nombre}? Se eliminan para siempre todos sus consumos. No se puede deshacer.`,
+        { confirmLabel: 'Vaciar lista' }
+      );
+      if (!ok) return;
+      try {
+        const r = await apiFetch(`/api/admin/personas/${p.id}/vaciar`, { method: 'POST' });
+        window.VW_UI.toast(`Lista de ${p.nombre} vaciada (${r.eliminados} consumos).`, 'ok');
         loadDesprendibles();
-        document.getElementById('cuentaBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    });
-    el.personasBody.querySelectorAll('[data-ver-consumo]').forEach((btn) => {
-      btn.addEventListener('click', () => mostrarDetallePersona(Number(btn.dataset.verConsumo), btn.dataset.nombre));
-    });
-    el.personasBody.querySelectorAll('[data-vaciar]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const nombre = btn.dataset.nombre;
-        const ok = await window.VW_UI.confirmDialog(
-          `¿Vaciar la lista de ${nombre}? Se eliminan para siempre todos sus consumos. No se puede deshacer.`,
-          { confirmLabel: 'Vaciar lista' }
-        );
-        if (!ok) return;
-        try {
-          const r = await apiFetch(`/api/admin/personas/${btn.dataset.vaciar}/vaciar`, { method: 'POST' });
-          window.VW_UI.toast(`Lista de ${nombre} vaciada (${r.eliminados} consumos).`, 'ok');
-        } catch (err) {
-          window.VW_UI.toast(err.message, 'error');
-        }
-      });
-    });
-    el.personasBody.querySelectorAll('[data-editar-persona]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const persona = personasCache.find((x) => x.id === Number(btn.dataset.editarPersona));
-        if (persona) abrirEditarPersona(persona);
-      });
+      } catch (err) {
+        window.VW_UI.toast(err.message, 'error');
+      }
     });
   }
 
