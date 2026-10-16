@@ -290,7 +290,7 @@
             )
             .join('');
           return `<details class="cierre-resumen">
-            <summary><span><strong>${labelQuincena(c.periodo_inicio, c.periodo_fin)}</strong><br /><span class="muted">${porCobrar ? `Por cobrar ${formatMoney(porCobrar)}` : 'Todo pagado'}</span></span><span class="muted">Total ${formatMoney(c.total)}</span></summary>
+            <summary><span><strong>${labelQuincena(c.periodo_inicio, c.periodo_fin)}</strong><br /><span class="${porCobrar ? 'debe' : 'muted'}">${porCobrar ? `Por cobrar ${formatMoney(porCobrar)}` : `Cobrada · recaudado ${formatMoney(c.total)}`}</span></span><span class="muted">${porCobrar ? `de ${formatMoney(c.total)}` : ''}</span></summary>
             <div class="nombres">${nombres || '<p class="muted">Sin consumos.</p>'}</div>
             <button type="button" class="btn btn-sm" data-csv="${c.id}">Exportar CSV</button></details>`;
         })
@@ -356,7 +356,7 @@
             const pago = cerrada
               ? `<div class="pago-fila">${q.pagado ? '<span class="muted">Pagado</span>' : '<strong class="debe">Pendiente de pago</strong>'}${q.comprobante_url ? `<a href="${escapeHtml(q.comprobante_url)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}<button type="button" class="btn btn-sm ${q.pagado ? '' : 'btn-accent'}" data-pago="${q.cierre_id}:${id}:${q.pagado ? 0 : 1}">${q.pagado ? 'Marcar pendiente' : 'Marcar pagado'}</button></div>`
               : '';
-            const abierta = i === 0 || (cerrada && !q.pagado);
+            const abierta = false;
             return `<details class="desp-q"${abierta ? ' open' : ''}><summary><span><strong>${labelQuincena(q.inicio, q.fin)}</strong> <span class="muted">${ESTADO_DESPR[q.estado]}</span></span><strong>${formatMoney(q.total)}</strong></summary>
               ${pago}<div class="lineas">${lineas}</div>
               <button type="button" class="btn btn-sm" data-despr-csv="${i}">Exportar CSV</button></details>`;
@@ -524,19 +524,20 @@
   function renderPersonas() {
     const p = personasCache.find((x) => String(x.id) === el.desprPersona.value);
     const box = document.getElementById('personaAcciones');
+    const resumen = document.getElementById('personaResumen');
     if (!p) {
       box.innerHTML = '';
+      resumen.innerHTML = '';
       return;
     }
     const deuda = deudaPorPersona();
-    box.innerHTML = `<div class="persona-estado"><span>${p.activo ? 'Activa' : 'Inactiva'}</span> · ${
-      deuda.has(p.id) ? `<strong class="debe">Debe ${formatMoney(deuda.get(p.id))}</strong>` : '<span class="muted">Al día</span>'
-    }</div>
-      <div class="persona-botones">
+    resumen.innerHTML = deuda.has(p.id)
+      ? `<span class="muted">Total que debe</span><strong class="debe grande">${formatMoney(deuda.get(p.id))}</strong>`
+      : '<span class="muted">Al día, no debe nada</span>';
+    box.innerHTML = `<div class="muted" style="width:100%">${escapeHtml(p.nombre)} · ${p.activo ? 'Activa' : 'Inactiva'}</div>
         <button type="button" class="btn btn-sm" id="pConsumo">Ver consumo</button>
         <button type="button" class="btn btn-sm" id="pEditar">Editar</button>
-        <button type="button" class="btn btn-sm btn-quiet-danger" id="pVaciar">Vaciar lista</button>
-      </div>`;
+        <button type="button" class="btn btn-sm btn-quiet-danger" id="pVaciar">Vaciar lista</button>`;
     document.getElementById('pConsumo').addEventListener('click', () => mostrarDetallePersona(p.id, p.nombre));
     document.getElementById('pEditar').addEventListener('click', () => abrirEditarPersona(p));
     document.getElementById('pVaciar').addEventListener('click', async () => {

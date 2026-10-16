@@ -1206,3 +1206,95 @@ body.modal-lock {
   display: block;
   text-align: center;
 }
+
+.persona-estado {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.grande {
+  font-size: calc(22px * var(--fs));
+}
+
+.gestion {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.gestion > summary {
+  cursor: pointer;
+}
+
+.gestion .persona-botones {
+  margin-top: 10px;
+}
+
+/* Catálogo compacto del autoservicio: 3 columnas en celular, 4-5 en pantalla grande. */
+.producto-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 641px) {
+  .producto-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .producto-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.producto-card {
+  border-radius: var(--radius-sm);
+}
+
+.producto-card:hover {
+  transform: none;
+}
+
+.producto-card:hover .producto-foto {
+  transform: none;
+}
+
+.producto-foto,
+.producto-foto-empty {
+  aspect-ratio: 4 / 3;
+}
+
+.producto-body {
+  padding: 8px;
+  gap: 3px;
+}
+
+.producto-nombre {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: calc(12px * var(--fs));
+  line-height: 1.25;
+  min-height: 2.5em;
+}
+
+.producto-precio {
+  font-size: calc(13px * var(--fs));
+}
+
+.producto-body .qty-controls {
+  margin-top: 4px;
+  gap: 4px;
+}
+
+.producto-body .qty-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
