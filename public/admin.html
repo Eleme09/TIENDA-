@@ -114,23 +114,6 @@
             </form>
           </details>
 
-          <details class="card-box" id="facturaBox">
-            <summary><strong>Cargar stock por foto de factura</strong></summary>
-            <div class="upload-row">
-              <input type="file" id="facturaFile" accept="image/*" />
-              <button type="button" class="btn btn-accent" id="btnOcr">Leer factura</button>
-            </div>
-            <p id="ocrStatus" class="muted" hidden>Leyendo imagen…</p>
-            <div id="facturaItemsWrap" hidden style="margin-top:12px">
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Cantidad</th><th>Producto detectado</th><th>Precio</th><th></th></tr></thead>
-                  <tbody id="facturaItemsBody"></tbody>
-                </table>
-              </div>
-              <button type="button" class="btn btn-accent" id="btnAplicarFactura" style="margin-top:12px">Aplicar al inventario</button>
-            </div>
-          </details>
         </div>
 
         <div id="tabNegocio" class="panel">

@@ -32,12 +32,6 @@
     productosGrid: document.getElementById('productosGrid'),
     productosBuscar: document.getElementById('productosBuscar'),
     productosVacio: document.getElementById('productosVacio'),
-    facturaFile: document.getElementById('facturaFile'),
-    btnOcr: document.getElementById('btnOcr'),
-    ocrStatus: document.getElementById('ocrStatus'),
-    facturaItemsWrap: document.getElementById('facturaItemsWrap'),
-    facturaItemsBody: document.getElementById('facturaItemsBody'),
-    btnAplicarFactura: document.getElementById('btnAplicarFactura'),
     negocioForm: document.getElementById('negocioForm'),
     negocioNombre: document.getElementById('negocioNombre'),
     negocioMoneda: document.getElementById('negocioMoneda'),
@@ -709,96 +703,6 @@
       el.productoFotoPreview.hidden = false;
     } catch (err) {
       window.VW_UI.toast(err.message, 'error');
-    }
-  });
-
-  // ── Factura (OCR) ────────────────────────────────────────────────────
-
-  let facturaItems = [];
-  let facturaTexto = '';
-
-  function renderFacturaItems() {
-    el.facturaItemsBody.innerHTML = facturaItems
-      .map(
-        (item, i) => `
-        <tr>
-          <td><input type="number" min="0" value="${item.cantidad}" data-field="cantidad" data-i="${i}" style="width:70px" /></td>
-          <td><input type="text" value="${escapeHtml(item.nombre)}" data-field="nombre" data-i="${i}" /></td>
-          <td><input type="number" min="0" value="${item.precio || ''}" data-field="precio" data-i="${i}" style="width:90px" /></td>
-          <td><button type="button" class="btn btn-sm" data-remove="${i}">Quitar</button></td>
-        </tr>
-      `
-      )
-      .join('');
-
-    el.facturaItemsBody.querySelectorAll('input').forEach((input) => {
-      input.addEventListener('input', () => {
-        const i = Number(input.dataset.i);
-        const field = input.dataset.field;
-        facturaItems[i][field] = field === 'nombre' ? input.value : Number(input.value);
-      });
-    });
-    el.facturaItemsBody.querySelectorAll('[data-remove]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        facturaItems.splice(Number(btn.dataset.remove), 1);
-        renderFacturaItems();
-      });
-    });
-  }
-
-  el.btnOcr.addEventListener('click', async () => {
-    const file = el.facturaFile.files[0];
-    if (!file) {
-      window.VW_UI.toast('Elige una foto primero.', 'error');
-      return;
-    }
-    el.ocrStatus.hidden = false;
-    el.btnOcr.disabled = true;
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/admin/factura/ocr', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'No se pudo leer la factura');
-      facturaTexto = data.texto;
-      facturaItems = data.items.map((it) => ({ ...it }));
-      renderFacturaItems();
-      el.facturaItemsWrap.hidden = false;
-      el.btnAplicarFactura.disabled = false;
-      if (facturaItems.length === 0) {
-        window.VW_UI.toast('No se detectaron líneas — revisa la foto o carga los productos manualmente.', 'error');
-      }
-    } catch (err) {
-      window.VW_UI.toast(err.message, 'error');
-    } finally {
-      el.ocrStatus.hidden = true;
-      el.btnOcr.disabled = false;
-    }
-  });
-
-  el.btnAplicarFactura.addEventListener('click', async () => {
-    if (el.btnAplicarFactura.disabled) return;
-    el.btnAplicarFactura.disabled = true;
-    const items = facturaItems.map((it) => {
-      const match = productosCache.find((p) => p.nombre.toLowerCase() === it.nombre.toLowerCase());
-      return match
-        ? { producto_id: match.id, cantidad: it.cantidad }
-        : { nombre: it.nombre, precio: it.precio, cantidad: it.cantidad };
-    });
-    try {
-      const data = await apiFetch('/api/admin/factura/aplicar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, texto: facturaTexto }),
-      });
-      window.VW_UI.toast(`Inventario actualizado: ${data.aplicados.length} producto(s).`, 'ok');
-      el.facturaItemsWrap.hidden = true;
-      facturaItems = [];
-      el.facturaFile.value = '';
-      await loadProductos();
-    } catch (err) {
-      window.VW_UI.toast(err.message, 'error');
-      el.btnAplicarFactura.disabled = false;
     }
   });
 

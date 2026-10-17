@@ -3,8 +3,7 @@
 Para una tienda de autoservicio (ej. dulcería) donde los clientes/empleados
 se sirven solos y anotan lo que sacaron. Reemplaza la libreta de fiado en
 papel: cada persona registra su propio consumo con un PIN de 4 dígitos, el
-dueño ve el reporte de quincena y el stock se puede recargar subiendo una
-foto de la factura (OCR local, sin API de IA paga).
+dueño ve el reporte de quincena y el stock se ajusta editando cada producto.
 
 ## Setup
 
@@ -29,12 +28,7 @@ foto de la factura (OCR local, sin API de IA paga).
   persona.
 - **`/admin.html` (panel del dueño):** login propio (usuario/contraseña,
   igual que VENTA-WEB). Desde ahí: reporte de consumo por rango de fechas
-  (total a cobrar por persona), alta de personas y productos, y carga de
-  stock por foto de factura.
-- **Factura por foto:** el OCR (`tesseract.js`, corre en el propio server,
-  sin API externa de IA) lee el texto de la imagen. El parseo de líneas en
-  cantidad/producto/precio es una heurística — por eso siempre se muestra
-  en una tabla editable antes de aplicar nada al inventario.
+  (total a cobrar por persona), alta de personas y productos.
 
 ## Reutilizado de VENTA-WEB
 

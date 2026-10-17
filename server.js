@@ -8,7 +8,6 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
-const { createWorker } = require('tesseract.js');
 
 const lib = require('./lib');
 
@@ -245,11 +244,6 @@ async function sbCreateAdmin(username, passwordHash, displayName) {
     .single();
   if (error) throw error;
   return data;
-}
-
-async function sbSaveFactura(textoOcr, itemsAplicados) {
-  const { error } = await supabase.from('tf_facturas').insert({ texto_ocr: textoOcr, items_aplicados: itemsAplicados });
-  if (error) throw error;
 }
 
 // ── App ─────────────────────────────────────────────────────────────────
@@ -899,61 +893,6 @@ app.post(
     if (!req.file) return res.status(400).json({ error: 'Falta el archivo' });
     const url = await sbUploadImage(req.file.buffer, req.file.mimetype, req.file.originalname);
     res.json({ url });
-  })
-);
-
-// ── Factura por foto (OCR local, sin API de IA) ──────────────────────────
-// El OCR (tesseract.js) solo lee texto de la imagen. El parseo de
-// cantidad/nombre/precio es una heurística de líneas (lib.parseInvoiceText)
-// — por eso esto SIEMPRE vuelve como una lista editable, nunca se aplica
-// solo al inventario sin que el dueño la confirme.
-
-app.post(
-  '/api/admin/factura/ocr',
-  requireAdmin,
-  upload.single('file'),
-  asyncRoute(async (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'Falta la foto de la factura' });
-
-    const worker = await createWorker('spa');
-    try {
-      const {
-        data: { text },
-      } = await worker.recognize(req.file.buffer);
-      res.json({ texto: text, items: lib.parseInvoiceText(text) });
-    } finally {
-      await worker.terminate();
-    }
-  })
-);
-
-app.post(
-  '/api/admin/factura/aplicar',
-  requireAdmin,
-  asyncRoute(async (req, res) => {
-    const items = Array.isArray(req.body.items) ? req.body.items : [];
-    const productos = await sbListProductos();
-    const aplicados = [];
-    for (const item of items) {
-      const cantidad = Number(item.cantidad) || 0;
-      if (cantidad <= 0) continue;
-      if (item.producto_id) {
-        const producto = productos.find((p) => p.id === Number(item.producto_id));
-        if (!producto) continue;
-        await sbUpdateProducto(producto.id, { stock: Number(producto.stock) + cantidad });
-        aplicados.push({ producto_id: producto.id, nombre: producto.nombre, cantidad, tipo: 'existente' });
-      } else if (item.nombre) {
-        const nuevo = await sbCreateProducto({
-          nombre: String(item.nombre).trim(),
-          precio: Number(item.precio) || 0,
-          stock: cantidad,
-          unidad: 'unidad',
-        });
-        aplicados.push({ producto_id: nuevo.id, nombre: nuevo.nombre, cantidad, tipo: 'nuevo' });
-      }
-    }
-    await sbSaveFactura(req.body.texto || null, aplicados);
-    res.json({ ok: true, aplicados });
   })
 );
 
