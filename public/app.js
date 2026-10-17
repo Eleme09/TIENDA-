@@ -24,7 +24,7 @@
     stepMenu: document.getElementById('stepMenu'),
     menuPersonaName: document.getElementById('menuPersonaName'),
     productoList: document.getElementById('productoList'),
-    historialBody: document.getElementById('historialBody'),
+    historialLista: document.getElementById('historialLista'),
     quincenaLabel: document.getElementById('quincenaLabel'),
     quincenaTotal: document.getElementById('quincenaTotal'),
     btnSalir: document.getElementById('btnSalir'),
@@ -177,30 +177,30 @@
     renderCarritoBar();
   }
 
-  // Quincena colombiana estándar: 1-15 y 16-fin de mes. No hay envío
-  // automático (no hay email/WhatsApp integrado) — esto muestra siempre
-  // el total vigente de la quincena en curso, actualizado al momento.
-  function quincenaActualRango() {
-    const now = new Date();
-    const day = now.getDate();
-    const start = new Date(now.getFullYear(), now.getMonth(), day <= 15 ? 1 : 16);
-    const end =
-      day <= 15
-        ? new Date(now.getFullYear(), now.getMonth(), 15, 23, 59, 59)
-        : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    return { start, end };
+  // Quincena colombiana estándar: 1-15 y 16-fin de mes (hora Colombia).
+  const MESES_H = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+  function quincenaDe(fecha) {
+    const d = new Date(new Date(fecha).getTime() - 5 * 3600 * 1000);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const primera = d.getUTCDate() <= 15;
+    const ultimo = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    const desde = primera ? 1 : 16;
+    const hasta = primera ? 15 : ultimo;
+    return { key: `${y}-${String(m + 1).padStart(2, '0')}-${desde}`, label: `${desde} al ${hasta} ${MESES_H[m]} ${y}`, corta: `${desde} – ${hasta} ${MESES_H[m]}` };
   }
 
   function renderQuincena(consumos) {
-    const { start, end } = quincenaActualRango();
-    const fmt = (d) => d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
-    el.quincenaLabel.textContent = `Quincena actual (${fmt(start)} – ${fmt(end)})`;
+    const actual = quincenaDe(Date.now());
+    el.quincenaLabel.textContent = `Quincena actual (${actual.corta})`;
     const total = consumos
-      .filter((c) => !c.anulado && new Date(c.created_at) >= start && new Date(c.created_at) <= end)
+      .filter((c) => !c.anulado && quincenaDe(c.created_at).key === actual.key)
       .reduce((sum, c) => sum + Number(c.precio_unitario) * Number(c.cantidad), 0);
     el.quincenaTotal.textContent = formatMoney(total);
   }
 
+  // Historial por quincenas: la actual abierta, las anteriores plegadas.
   async function loadHistorial() {
     const res = await fetch(`/api/personas/${selectedPersona.id}/consumos`, {
       method: 'POST',
@@ -213,23 +213,38 @@
       return;
     }
     renderQuincena(data);
-    el.historialBody.innerHTML = data
-      .map((c) => {
-        const fecha = new Date(c.created_at).toLocaleDateString('es-CO');
-        const total = formatMoney(Number(c.precio_unitario) * Number(c.cantidad));
-        const nombre = c.tf_productos ? c.tf_productos.nombre : '';
-        const estado = c.anulado
-          ? `<span class="pill pill-warn">Anulado</span>`
-          : `<span class="pill pill-ok">Vigente</span>`;
-        const motivo = c.anulado ? escapeHtml(c.motivo_anulacion || '—') : '';
-        const dentroDePlazo = Date.now() - new Date(c.created_at).getTime() <= 15 * 60 * 1000;
-        const anularBtn =
-          c.anulado || !dentroDePlazo ? '' : `<button type="button" class="btn btn-sm" data-anular="${c.id}">Anular</button>`;
-        return `<tr><td>${fecha}</td><td>${escapeHtml(nombre)}</td><td>${c.cantidad}</td><td>${total}</td><td>${estado}</td><td>${motivo}</td><td>${anularBtn}</td></tr>`;
+    const actualKey = quincenaDe(Date.now()).key;
+    const grupos = new Map();
+    for (const c of data) {
+      const q = quincenaDe(c.created_at);
+      if (!grupos.has(q.key)) grupos.set(q.key, { ...q, total: 0, lineas: [] });
+      const g = grupos.get(q.key);
+      const subtotal = Number(c.precio_unitario) * Number(c.cantidad);
+      if (!c.anulado) g.total += subtotal;
+      g.lineas.push({ c, subtotal });
+    }
+    if (!grupos.has(actualKey)) {
+      const q = quincenaDe(Date.now());
+      grupos.set(q.key, { ...q, total: 0, lineas: [] });
+    }
+    const orden = Array.from(grupos.values()).sort((a, b) => (a.key < b.key ? 1 : -1));
+    el.historialLista.innerHTML = orden
+      .map((g) => {
+        const esActual = g.key === actualKey;
+        const filas = g.lineas
+          .map(({ c, subtotal }) => {
+            const fecha = new Date(c.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+            const nombre = c.tf_productos ? c.tf_productos.nombre : '';
+            const dentroDePlazo = Date.now() - new Date(c.created_at).getTime() <= 15 * 60 * 1000;
+            const anularBtn = c.anulado || !dentroDePlazo ? '' : `<button type="button" class="btn btn-sm btn-quiet" data-anular="${c.id}">Anular</button>`;
+            return `<div class="linea consumo${c.anulado ? ' anulada' : ''}"><span class="linea-fecha">${fecha}</span><span class="linea-prod">${escapeHtml(nombre)} ×${c.cantidad}${c.anulado ? `<br /><span class="muted">Anulado: ${escapeHtml(c.motivo_anulacion || '—')}</span>` : ''}</span><span class="linea-monto">${formatMoney(subtotal)}</span>${anularBtn}</div>`;
+          })
+          .join('');
+        return `<details class="desp-q"${esActual ? ' open' : ''}><summary><span><strong>${g.label}</strong>${esActual ? ' <span class="muted">Actual</span>' : ''}</span><strong>${formatMoney(g.total)}</strong></summary><div class="lineas" style="margin:0 12px 12px">${filas || '<p class="muted">Sin consumos todavía.</p>'}</div></details>`;
       })
       .join('');
 
-    el.historialBody.querySelectorAll('[data-anular]').forEach((btn) => {
+    el.historialLista.querySelectorAll('[data-anular]').forEach((btn) => {
       btn.addEventListener('click', () => anularConsumo(Number(btn.dataset.anular)));
     });
   }
